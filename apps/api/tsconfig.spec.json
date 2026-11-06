@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "isolatedModules": true,
+    "types": ["jest", "node"],
+    "baseUrl": ".",
+    "paths": { "@vecinopay/finance": ["../../packages/finance/src/index.ts"] }
+  },
+  "include": ["src", "test"]
+}
