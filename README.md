@@ -93,7 +93,7 @@ Los datos que no salen del informe están marcados como `FICTICIO (demo)` en `db
 
 | Fase | Entregable | Estado |
 |---|---|---|
-| 0 | Monorepo, docker-compose, README, zona America/Lima | En revisión |
+| 0 | Monorepo, docker-compose, README, zona America/Lima | Aprobada |
 | 1 | Esquema SQL de 11 tablas y semillas (juegos 1 y 2) | Aprobada |
 | 2 | Motor financiero con pruebas al céntimo | Aprobada |
 | 3 | API: auth, roles, multitienda, compras, corte, listados, pagos, cronogramas, auditoría | Pendiente |
