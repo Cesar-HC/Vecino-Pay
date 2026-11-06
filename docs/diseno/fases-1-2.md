@@ -474,7 +474,7 @@ Todo lo que usa TED corre con `describe.each` en dos variantes: **TED completa**
 
 ## 8. `db/verificar_semillas.sql`
 
-Se ejecuta aparte con `db/verificar.sh` (`-S db -d VecinoPay -C -b -I -f 65001`):
+Se ejecuta aparte con `db/verificar.sh` (`-S db -U sa -P "$MSSQL_SA_PASSWORD" -C -b -I -f 65001 -i /db/verificar_semillas.sql`; la BD se elige con `USE VecinoPay` en ese script):
 
 ```
 docker compose run --rm --entrypoint /bin/bash db-init /db/verificar.sh
@@ -532,7 +532,7 @@ Se expone como `npm run db:verificar`.
 
 ### 9.2 Supuestos sin ejecutar
 
-Este diseño no se ejecutó. Hay que confirmar en el primer arranque: `AT TIME ZONE 'SA Pacific Standard Time'` en SQL Server sobre Linux, `-f 65001` en `sqlcmd` y el `DEFAULT` de `fecha_hora`. Los montos de 4.3 y 4.4 se recalcularon a mano y cuadran; los del informe se tomaron tal cual.
+Confirmado al ejecutar: `AT TIME ZONE 'SA Pacific Standard Time'` en SQL Server sobre Linux, `-f 65001` en `sqlcmd` y el `DEFAULT` de `fecha_hora` (`db/verificar_semillas.sql`). Los montos de 4.3 y 4.4 se recalcularon a mano y cuadran; los del informe se tomaron tal cual.
 
 ### 9.3 Escalamientos
 

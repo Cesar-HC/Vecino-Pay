@@ -25,3 +25,14 @@
 | 2026-11-06 | Ronda 1, revisor | No se agregan triggers para cuota de compra FIN_MES ni para cambiar la tienda de un producto vendido; TRUNCATE de auditoría y secretos por defecto de docker-compose quedan para la fase 3 | Lo controla la API y el informe no lo exige; se anotó en el diseño, sección 9.1 |
 | 2026-11-06 | Ciclo | AsignarCiclo usa la fecha operativa (Tabla 13) | Equivale a la Figura 31; una prueba lo compara en 1.3 millones de combinaciones |
 | 2026-11-06 | Datos de semilla | Lo que el informe no da se inventa y se marca FICTICIO (demo) | El detalle de compras y el catálogo no están en el informe; no cambian ninguna cifra de 6.4 |
+| 2026-11-06 | Acceso a datos | Prisma 6 con versión exacta y prueba de concepto antes de escribir módulos; `mssql` solo con aviso a Adrián | Stack del prompt; el riesgo se descubre el primer día |
+| 2026-11-06 | Corte | El cron corre a las 17:00:01 y procesa la fecha calendario de Lima; compra y pago leen el reloj tras el bloqueo del cliente; selección por fechas guardadas | 17:00:00 es inclusiva por segundo (Fig. 25) y 6.1.3 graba las fechas; ninguna compra queda fuera de un corte ya ejecutado |
+| 2026-11-06 | Corte manual y entorno | `POST /cortes/ejecutar` solo para administrador, solo hoy y tras las 17:00:00; sin cron con reloj fijo; `NODE_ENV` ausente equivale a producción | Fases 1-2, 9.1.2; falla cerrado ante un descuido |
+| 2026-11-06 | Editar condiciones | Tasas, moneda y días no cambian con SU mayor que cero | Sección 8: un listado emitido no cambia; ningún RF pide más |
+| 2026-11-06 | SU fuera de orden | `saldo_final` de la mayor k con 1..k pagadas | Precisa la decisión de Adrián en un caso no previsto; el flujo normal no cambia |
+| 2026-11-06 | Ítem de mora | `itemMora` en el motor; solo se guarda en el pago aceptado, con la fecha operativa | 6.3i, T31, Fig. 33 y 35 |
+| 2026-11-06 | Alta de tienda | La fecha sale de `auditoria`; se siembra en un lote idempotente y quedan 10 filas | Observación del auditor; sin cambiar el esquema |
+| 2026-11-06 | Datos para el administrador | `detalleParaAdmin` quita `datos=` y enmascara importes; reactivar se audita como CAMBIO | 6.2.1 y A02; el gráfico de altas no debe contar dos veces |
+| 2026-11-06 | Baja y cuentas | La baja bloquea compras y acceso, pero corte y cobro siguen; la cuenta de cliente solo nace en C02 | La baja es lógica y no borra la deuda; 6.1.1 |
+| 2026-11-06 | Pruebas y datos de pantalla | BD de pruebas en el proyecto Docker `vecinopay_test`, puerto 14333; la prueba de punta a punta no reproduce los tickets T-000231 y siguientes; datos de pantalla sin sembrar pasan a la fase 6 | No se tocan los datos de desarrollo; `verificar_semillas.sql` vale solo para el estado de 6.4 |
+| 2026-11-06 | Puntos E1 a E4 del diseño de fase 3 | Se avanza con la opción A de cada uno, aislada en un punto, hasta que Adrián decida | Ninguno bloquea la fase 3 ni los juegos 1 y 2; se le presentan al cerrar la fase |
