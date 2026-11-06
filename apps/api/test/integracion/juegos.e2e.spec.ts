@@ -139,6 +139,7 @@ describe('Juego 1 (T16, T17)', () => {
     p.reloj.fijar('2026-09-22T12:00:00');
     const c = (await p.get(`/clientes/${luis}`, dueno).expect(200)).body;
     expect([c.su, c.disponible]).toEqual(['244.92', '255.08']);
+    expect(c.deudaALaFecha).toBe('244.92');
     const v = (await p.get(`/listados/${listado}/valor-hoy?fecha=2026-09-16`, dueno).expect(200)).body;
     expect(v.td).toBe(10);
     expect(v.d.startsWith('0.0102681')).toBe(true);
@@ -190,6 +191,7 @@ describe('Escenarios de pago (T17)', () => {
     await p.post('/compras', dueno, compra(cliente, [['P001', '1.300'], ['P004', '3']])).expect(201);
     p.reloj.fijar('2026-10-01T10:00:00');
 
+    expect((await p.get(`/clientes/${cliente}`, dueno)).body.deudaALaFecha).toBe('250.02');
     const parcial = await pagar(listado, '200.00').expect(422);
     expect(parcial.body.codigo).toBe('PAGO_NO_EXACTO');
     expect(parcial.body.mensaje).toContain('228.72');
@@ -267,6 +269,27 @@ describe('Juego 2 (T18 a T20, T22)', () => {
     expect(k.flujoCaja.filas.slice(1).map((f: { valorActual: string }) => f.valorActual)).toEqual(['91.33', '89.91', '88.56']);
     expect(k.flujoCaja.sumaValorActual).toBe('269.81');
     expect(k.flujoCaja.cokVigenteCoincide).toBe(true);
+  });
+
+  it('deuda a la fecha por HTTP: 261.07 antes de vencer y 270.27 al 28/10', async () => {
+    const unaMaria = (await p.post('/clientes', dueno, MARIA(dniUnico())).expect(201)).body.id;
+    const deuda = async () => (await p.get(`/clientes/${unaMaria}`, dueno).expect(200)).body;
+    p.reloj.fijar('2026-09-15T10:35:00');
+    await p.post('/compras', dueno, compra(unaMaria, [['P012', '1'], ['P013', '1']], { modalidad: 'CUOTAS', numCuotas: 3 })).expect(201);
+    const antes = await deuda();
+    expect([antes.deudaALaFecha, antes.su]).toEqual(['261.07', '257.80']); // P' y no SU, antes de la cuota 1.
+    await cortar('2026-10-20T17:00:01');
+    p.reloj.fijar('2026-10-22T10:00:00');
+    expect((await deuda()).deudaALaFecha).toBe('261.07');
+    p.reloj.fijar('2026-10-26T17:00:00');
+    expect((await deuda()).deudaALaFecha).toBe('261.07');
+    p.reloj.fijar('2026-10-28T10:00:00');
+    const vencida = await deuda();
+    expect(vencida.deudaALaFecha).toBe('270.27');
+    expect(vencida.su).toBe('257.80'); // La deuda no cambia la regla de SU.
+    const [l] = await listadoDe(unaMaria);
+    await p.post(`/listados/${l.id}/pago`, dueno, { montoPagado: '93.31', medioPago: 'Yape' }).expect(201);
+    expect((await deuda()).deudaALaFecha).toBe('176.96');
   });
 
   it('paga las tres cuotas: 176.96, 90.11 con mora 0.12, y 0.00', async () => {

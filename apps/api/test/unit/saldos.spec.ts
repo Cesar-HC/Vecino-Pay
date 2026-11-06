@@ -1,5 +1,5 @@
 import { Dec, red } from '@vecinopay/finance';
-import { calcularSu, capitalPendienteCompra, CompraParaSu } from '../../src/clientes/saldos';
+import { calcularDeuda, calcularSu, capitalPendienteCompra, CompraParaSu } from '../../src/clientes/saldos';
 
 const d = (x: string) => new Dec(x);
 const cuotas = (pagadas: number[]) =>
@@ -42,5 +42,41 @@ describe('capital pendiente (decisión de Adrián)', () => {
       cuotas: [],
     }));
     expect(calcularSu(compras).toFixed(2)).toBe('244.92');
+  });
+});
+
+describe('deuda a la fecha (6.3m, decisión de Adrián)', () => {
+  const tedMoraMaria = d('0.000314851458950');
+  const tedMoraLuis = d('0.000264785548963');
+  const cuotas = [d('84.11'), d('86.85'), d('90.11')];
+  const cuota1 = { total: d('93.25'), totalCapital: d('84.11'), fechaPago: '2026-10-26' };
+  const texto = (x: Dec) => x.toFixed(2);
+
+  it('María al 28/10, con la cuota 1 vencida: 93.25 + 0.06 + 176.96 = 270.27', () => {
+    expect(texto(calcularDeuda({ listados: [cuota1], comprasSinListar: [], cuotasSinListar: cuotas.slice(1), tedMora: tedMoraMaria, hoy: '2026-10-28' }))).toBe('270.27');
+  });
+
+  it("antes de la cuota 1, el saldo es P' (261.07), no SU", () => {
+    expect(texto(calcularDeuda({ listados: [], comprasSinListar: [], cuotasSinListar: cuotas, tedMora: tedMoraMaria, hoy: '2026-09-22' }))).toBe('261.07');
+  });
+
+  it('un listado no vencido suma su capital sin interés, también el mismo día de pago', () => {
+    for (const hoy of ['2026-10-22', '2026-10-26']) {
+      expect(texto(calcularDeuda({ listados: [cuota1], comprasSinListar: [], cuotasSinListar: cuotas.slice(1), tedMora: tedMoraMaria, hoy }))).toBe('261.07');
+    }
+  });
+
+  const listadoLuis = { total: d('228.42'), totalCapital: d('223.62'), fechaPago: '2026-09-26' };
+
+  it('Luis al 22/09: listado no vencido y compra sin listar suman capital: 244.92', () => {
+    expect(texto(calcularDeuda({ listados: [listadoLuis], comprasSinListar: [d('21.30')], cuotasSinListar: [], tedMora: tedMoraLuis, hoy: '2026-09-22' }))).toBe('244.92');
+  });
+
+  it('Luis al 01/10: 228.42 + 0.30 + 21.30 = 250.02', () => {
+    expect(texto(calcularDeuda({ listados: [listadoLuis], comprasSinListar: [d('21.30')], cuotasSinListar: [], tedMora: tedMoraLuis, hoy: '2026-10-01' }))).toBe('250.02');
+  });
+
+  it('sin nada pendiente, 0.00', () => {
+    expect(texto(calcularDeuda({ listados: [], comprasSinListar: [], cuotasSinListar: [], tedMora: tedMoraLuis, hoy: '2026-10-01' }))).toBe('0.00');
   });
 });

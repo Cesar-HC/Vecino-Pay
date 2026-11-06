@@ -7,7 +7,6 @@ import {
   cuantizarTasa,
   Dec,
   fechaOperativaLocal,
-  liquidarAFecha,
   partesLima,
   tasaEfectivaDiaria,
   TasaPactada,
@@ -31,7 +30,7 @@ import { ErrorNegocio, noExiste } from '../comun/error-negocio';
 import { aId, aSoles, aTasa, ContextoDueno, Ctx, IsMonto, IsTasaTexto, Opcional, PaginaDto, paginar, ParseIdPipe, Roles, vacioANull } from '../comun/utilidades';
 import { EstadoDto } from '../plataforma/plataforma.dto';
 import { RELOJ, Reloj } from '../reloj/reloj';
-import { calcularSu, CompraParaSu } from './saldos';
+import { calcularDeuda, calcularSu, CompraParaSu } from './saldos';
 
 export class TasaDto {
   @IsIn(['EFECTIVA', 'NOMINAL']) tipo: 'EFECTIVA' | 'NOMINAL';
@@ -174,7 +173,7 @@ export class ClientesService {
     return { items, total: await bd.cliente.count({ where }) };
   }
 
-  /** Deuda total a la fecha (6.3m): listados sin pagar con su mora, más el capital aún sin listar. */
+  /** Incluye la deuda a la fecha (6.3m, ver calcularDeuda). */
   async obtener(c: ContextoDueno, id: bigint) {
     const bd = this.bd.enTienda(c.tiendaId);
     const x = await bd.cliente.findFirst({ where: { id } });
@@ -183,16 +182,25 @@ export class ClientesService {
     const listados = await bd.listado_pago.findMany({ where: { cliente_id: id, estado: { not: 'PAGADO' } } });
     const p = partesLima(this.reloj.ahora());
     const hoy = fechaOperativaLocal(p.fecha, p.hora);
-    let deuda = su;
-    for (const l of listados) {
-      const a = liquidarAFecha({
+    const compras = await bd.compra.findMany({
+      where: { cliente_id: id, estado: 'PENDIENTE' },
+      include: { cuota: { include: { listado_item: true } }, listado_item: true },
+    });
+    const deuda = calcularDeuda({
+      listados: listados.map((l) => ({
         total: aDecBd(l.total),
-        tedMora: aDecBd(x.ted_mora),
+        totalCapital: aDecBd(l.total_capital),
         fechaPago: deFechaBd(l.fecha_pago),
-        fechaOperativaPago: hoy,
-      });
-      deuda = deuda.minus(aDecBd(l.total_capital)).plus(a.totalALaFecha);
-    }
+      })),
+      comprasSinListar: compras
+        .filter((k) => k.modalidad === 'FIN_MES' && k.listado_item.length === 0)
+        .map((k) => aDecBd(k.monto_lista)),
+      cuotasSinListar: compras.flatMap((k) =>
+        k.cuota.filter((q) => q.estado === 'PENDIENTE' && q.listado_item.length === 0).map((q) => aDecBd(q.amortizacion)),
+      ),
+      tedMora: aDecBd(x.ted_mora),
+      hoy,
+    });
     return {
       ...this.dto(x, su),
       deudaALaFecha: aSoles(deuda),

@@ -897,6 +897,8 @@ Cada paso termina con la suite en verde y con un commit. Los pasos 0 a 10 son el
 
 ## 16. Puntos para escalar a Adrián
 
+**Resueltos el 2026-11-06:** E1 a E4, opción A (`docs/escalaciones.md`).
+
 Ninguno bloquea el juego 1 ni el juego 2. El diseño avanza con la opción recomendada y cada una está aislada en un solo punto.
 
 ### [ESCALAR] E1. ¿Se puede digitar la fecha real del pago en D07?

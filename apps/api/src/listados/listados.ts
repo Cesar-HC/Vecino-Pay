@@ -273,7 +273,7 @@ export class ListadosService {
       const l = await this.conCliente(t.bd, id);
       if (l.estado === 'PAGADO') throw new ErrorNegocio(409, 'LISTADO_YA_PAGADO', 'Este listado ya está pagado.');
 
-      // Siempre la hora del servidor (punto E1 pendiente de Adrián). Se lee después del bloqueo.
+      // Siempre la hora del servidor (decisión de Adrián). Se lee después del bloqueo.
       const p = t.ahora();
       const fechaOperativaPago = fechaOperativaLocal(p.fecha, p.hora);
       const r = registrarPago({
