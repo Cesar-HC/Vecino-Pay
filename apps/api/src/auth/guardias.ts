@@ -84,6 +84,7 @@ export class GuardRoles implements CanActivate {
 export class GuardIntentos extends ThrottlerGuard {
   protected async getTracker(req: Record<string, unknown>): Promise<string> {
     const cuerpo = (req.body ?? {}) as { username?: unknown; dni?: unknown };
-    return String(cuerpo.username ?? cuerpo.dni ?? '').normalize('NFKC').trim().toLowerCase();
+    const clave = cuerpo.username ?? cuerpo.dni;
+    return (typeof clave === 'string' ? clave : '').normalize('NFKC').trim().toLowerCase();
   }
 }

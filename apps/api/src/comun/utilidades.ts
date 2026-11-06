@@ -50,6 +50,9 @@ export const IsTasaTexto = () =>
   Matches(/^\d{1,3}(\.\d{1,9})?$/, { message: '$property debe ser una tasa en texto, en tanto por uno, con hasta 9 decimales.' });
 export const IsIdTexto = () => Matches(/^\d{1,18}$/, { message: '$property debe ser un id en texto.' });
 
+/** En un PATCH, "" vacía una columna opcional: guarda NULL en vez de una cadena vacía. */
+export const vacioANull = (x: string | undefined) => (x === '' ? null : x);
+
 /** Como IsOptional, pero sin dejar pasar null: las columnas opcionales de los DTO no se vacían con null. */
 export const Opcional = () => ValidateIf((_, valor) => valor !== undefined);
 

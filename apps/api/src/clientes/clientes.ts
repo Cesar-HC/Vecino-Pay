@@ -28,7 +28,7 @@ import { BdService } from '../bd/bd.service';
 import { aDecBd, aDecimalBd, deFechaBd } from '../bd/conversiones';
 import { restriccionUnica } from '../bd/errores-bd';
 import { ErrorNegocio, noExiste } from '../comun/error-negocio';
-import { aId, aSoles, aTasa, ContextoDueno, Ctx, IsMonto, IsTasaTexto, Opcional, PaginaDto, paginar, ParseIdPipe, Roles } from '../comun/utilidades';
+import { aId, aSoles, aTasa, ContextoDueno, Ctx, IsMonto, IsTasaTexto, Opcional, PaginaDto, paginar, ParseIdPipe, Roles, vacioANull } from '../comun/utilidades';
 import { EstadoDto } from '../plataforma/plataforma.dto';
 import { RELOJ, Reloj } from '../reloj/reloj';
 import { calcularSu, CompraParaSu } from './saldos';
@@ -287,8 +287,8 @@ export class ClientesService {
       const data: Prisma.clienteUpdateInput = {
         nombres: d.nombres,
         apellidos: d.apellidos,
-        celular: d.celular,
-        direccion: d.direccion,
+        celular: vacioANull(d.celular),
+        direccion: vacioANull(d.direccion),
         moneda: d.moneda,
         limite_credito: d.limiteCredito === undefined ? undefined : aDecimalBd(d.limiteCredito, 2),
         max_meses: d.maxMeses,

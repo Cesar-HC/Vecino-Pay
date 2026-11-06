@@ -2,12 +2,12 @@ import { Body, Controller, Get, Injectable, Param, Patch, Post, Query } from '@n
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { producto } from '@prisma/client';
 import { validarPrecios } from '@vecinopay/finance';
-import { IsBoolean, IsIn, IsString, Length, Matches, MaxLength } from 'class-validator';
+import { IsBoolean, IsIn, IsString, Length, Matches, MaxLength, ValidateIf } from 'class-validator';
 import { BdService } from '../bd/bd.service';
 import { aDecBd, aDecimalBd } from '../bd/conversiones';
 import { restriccionUnica } from '../bd/errores-bd';
 import { ErrorNegocio, noExiste } from '../comun/error-negocio';
-import { aId, aSoles, ContextoDueno, Ctx, IsMonto, Opcional, PaginaDto, paginar, ParseIdPipe, Roles } from '../comun/utilidades';
+import { aId, aSoles, ContextoDueno, Ctx, IsMonto, Opcional, PaginaDto, paginar, ParseIdPipe, Roles, vacioANull } from '../comun/utilidades';
 import { EstadoDto } from '../plataforma/plataforma.dto';
 
 const URL_IMAGEN = /^https?:\/\/\S+\.(jpg|jpeg|png)$/i;
@@ -33,7 +33,8 @@ export class EditarProductoDto {
   @Opcional() @IsString() @MaxLength(500) descripcion?: string;
   @Opcional() @IsString() @Length(1, 5) unidad?: string;
   @Opcional() @IsString() @MaxLength(150) proveedor?: string;
-  @Opcional() @Matches(URL_IMAGEN, { message: 'La imagen debe ser una URL .jpg o .png.' }) @MaxLength(300) imagenUrl?: string;
+  // "" quita la imagen.
+  @Opcional() @ValidateIf((_, v) => v !== '') @Matches(URL_IMAGEN, { message: 'La imagen debe ser una URL .jpg o .png.' }) @MaxLength(300) imagenUrl?: string;
   @Opcional() @IsMonto(8) precioContado?: string;
   @Opcional() @IsMonto(8) precioLista?: string;
   @Opcional() @IsBoolean() permiteFinMes?: boolean;
@@ -132,11 +133,11 @@ export class ProductosService {
           data: {
             codigo: d.codigo,
             nombre: d.nombre,
-            marca: d.marca,
-            descripcion: d.descripcion,
+            marca: vacioANull(d.marca),
+            descripcion: vacioANull(d.descripcion),
             unidad: d.unidad,
-            proveedor: d.proveedor,
-            imagen_url: d.imagenUrl,
+            proveedor: vacioANull(d.proveedor),
+            imagen_url: vacioANull(d.imagenUrl),
             precio_contado: d.precioContado === undefined ? undefined : aDecimalBd(d.precioContado, 2),
             precio_lista: d.precioLista === undefined ? undefined : aDecimalBd(d.precioLista, 2),
             permite_fin_mes: d.permiteFinMes,

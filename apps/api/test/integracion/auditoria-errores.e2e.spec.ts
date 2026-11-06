@@ -273,6 +273,19 @@ describe('códigos de error del contrato', () => {
     expect(linea.body.codigo).toBe('CANTIDAD');
   });
 
+  it('el cuerpo ilegible da 4xx y un campo extra se nombra', async () => {
+    await p.post('/auth/login', undefined, { username: 'x', password: 'y'.repeat(200 * 1024), perfil: 'DUENO' }).expect(413);
+    const extra = await p.post('/auth/login', undefined, { username: 'x', password: 'y', perfil: 'DUENO', token: 'z' }).expect(400);
+    expect(extra.body.mensaje).toBe('El campo token no está permitido.');
+  });
+
+  it('"" vacía una columna opcional', async () => {
+    const creado = (await p.post('/productos', t.token, { ...productoBase(`K${dniUnico()}`), marca: 'M', imagenUrl: 'https://x.test/a.png' }).expect(201)).body;
+    const r = (await p.patch(`/productos/${creado.id}`, t.token, { marca: '', imagenUrl: '' }).expect(200)).body;
+    expect([r.marca, r.imagenUrl]).toEqual([null, null]);
+    await p.patch(`/productos/${creado.id}`, t.token, { imagenUrl: 'https://x.test/a.gif' }).expect(400);
+  });
+
   it('una baja repetida no se audita otra vez y A03 muestra el estado del dueño', async () => {
     const unico = `${Date.now()}`.slice(-9);
     const creada = (await p.post('/tiendas', admin, { ruc: `50${unico}`, razonSocial: 'Z', nombreComercial: 'Z', giro: 'X', cokTea: '0.2', usuarioDueno: `z${unico}@p.test`, claveTemporal: 'Clave#2026' }).expect(201)).body;
@@ -355,6 +368,10 @@ describe('límite de intentos, con la guardia real', () => {
     await intentar('otro@x.test').expect(401); // Otro usuario no queda bloqueado.
   });
 
+  it('un usuario que no es texto responde 400, no 500', async () => {
+    await q.post('/auth/login', undefined, { username: { toString: 1 }, password: 'x', perfil: 'DUENO' }).expect(400);
+  });
+
   it('no se evade con caracteres de ancho completo: ni llegan a comparar la clave', async () => {
     const q2 = (username: string, password: string, perfil: string) => q.post('/auth/login', undefined, { username, password, perfil });
     const ancho = (s: string) => s.replace('a', '\uFF41').replace('@', '\uFF20');
@@ -375,6 +392,8 @@ describe('límite de intentos, con la guardia real', () => {
       bloqueado = r.status === 429;
     }
     expect(bloqueado).toBe(true);
+    // Otra IP real, la que envía el nginx, no queda bloqueada.
+    await q.post('/auth/login', undefined, { username: 'otraip@x.test', password: 'mala', perfil: 'DUENO' }).set('X-Forwarded-For', '2.2.2.2').expect(401);
   });
 });
 

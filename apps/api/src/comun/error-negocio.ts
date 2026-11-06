@@ -24,11 +24,17 @@ export class ErrorNegocio extends Error {
 export const noExiste = (que = 'El recurso') => new ErrorNegocio(404, 'NO_EXISTE', `${que} no existe.`);
 
 /** Lo que escriben Express y las librerías, que no pasa por nuestros mensajes. */
-function mensajeEnEspanol(estado: number, mensaje: string): string {
+function mensajeEnEspanol(estado: number, mensaje: string, deValidacion: boolean): string {
   if (estado === 429) return 'Demasiados intentos. Espera un minuto y vuelve a intentarlo.';
   if (estado === 404 && mensaje.startsWith('Cannot ')) return 'La ruta no existe.';
-  if (estado === 400 && /JSON|token|Unexpected/i.test(mensaje)) return 'El cuerpo de la petición no es un JSON válido.';
+  // La validación entrega una lista; Nest envuelve el error de lectura del cuerpo con un solo texto.
+  if (estado === 400 && !deValidacion) return 'El cuerpo de la petición no es un JSON válido.';
   return mensaje;
+}
+
+function esErrorDeLectura(e: unknown): e is { status: number } {
+  const estado = (e as { status?: unknown } | null)?.status;
+  return typeof estado === 'number' && estado >= 400 && estado < 500;
 }
 
 /** Todas las respuestas de error tienen la forma { codigo, mensaje, detalles }. */
@@ -56,7 +62,10 @@ export class FiltroErrores implements ExceptionFilter {
         404: 'NO_EXISTE',
         429: 'DEMASIADOS_INTENTOS',
       };
-      res.status(estado).json({ codigo: codigos[estado] ?? 'ERROR', mensaje: mensajeEnEspanol(estado, mensaje), detalles: {} });
+      res.status(estado).json({ codigo: codigos[estado] ?? 'ERROR', mensaje: mensajeEnEspanol(estado, mensaje, typeof cuerpo === 'object' && Array.isArray((cuerpo as { message?: unknown }).message)), detalles: {} });
+    } else if (esErrorDeLectura(e)) {
+      // body-parser: cuerpo demasiado grande, juego de caracteres no admitido y similares.
+      res.status(e.status).json({ codigo: 'ENTRADA_INVALIDA', mensaje: 'No se pudo leer el cuerpo de la petición.', detalles: {} });
     } else {
       // Un cruce de tienda no debe revelar nada: se registra y se responde como cualquier fallo interno.
       this.log.error(e instanceof FueraDeAmbito ? `Fuera de ámbito: ${e.message}` : e);

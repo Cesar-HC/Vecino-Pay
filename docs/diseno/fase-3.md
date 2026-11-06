@@ -204,7 +204,7 @@ El valor por defecto de `RELOJ_FIJO` deja la demo en el 22/09/2026, la fecha de 
 - **Hash:** bcrypt de costo 10, igual que las semillas (`$2a$10$`). `bcryptjs` compara cualquiera de los prefijos `$2a$` y `$2b$`. Mínimo 8 caracteres (T7). Prueba: las tres contraseñas de demo del README entran contra los hash sembrados.
 - **Usuario inexistente:** igual se ejecuta una comparación contra un hash fijo, para no revelar qué usuarios existen. El mensaje es único: `Usuario, contraseña o perfil incorrectos.`
 - **Token:** HS256, 8 horas. Contiene `sub` (id como texto), `perfil` y `tiendaId` (solo para el dueño).
-- **Fuerza bruta:** `@nestjs/throttler` en `login` y `activar`, 10 intentos por minuto. La clave incluye el usuario o DNI, porque detrás del nginx todas las peticiones llegan con la misma IP. Se apaga con `overrideGuard` en las pruebas que no lo evalúan.
+- **Fuerza bruta:** `@nestjs/throttler` en `login` y `activar`, 10 intentos por minuto. La clave incluye el usuario o DNI, porque detrás del nginx todas las peticiones llegan con la misma IP. Además, 60 intentos por minuto por IP, con la IP real que envía el nginx (`docs/decisiones.md`). Se apaga con `overrideGuard` en las pruebas que no lo evalúan.
 
 ### 5.2 Guardias globales (por defecto, denegar)
 
@@ -467,7 +467,7 @@ Un 400 por DTO inválido no se audita: la operación nunca empezó.
 | Ruta | Entrada | Salida | Errores | RF / pantalla |
 |---|---|---|---|---|
 | `GET /plataforma/resumen` | | `tiendasActivas, usuariosActivos, clientesRegistrados, operacionesHoy, altasPorMes[{mes, cantidad}], operacionesPorDia[7]{fecha, cantidad}, tiendasPorGiro[{giro, cantidad}], ultimasOperaciones[]` sin `detalle` | | RF10 / A02 |
-| `GET /tiendas` | `texto?, estado?` | `items[{id, ruc, razonSocial, nombreComercial, giro, telefono, direccion, cokTea, estado, duenio{id, username, nombres}}]` | | RF02 / A03 |
+| `GET /tiendas` | `texto?, estado?` | `items[{id, ruc, razonSocial, nombreComercial, giro, telefono, direccion, cokTea, estado, duenio{id, username, nombres, estado}}]` | | RF02 / A03 |
 | `POST /tiendas` | `ruc, razonSocial, nombreComercial, giro, telefono?, direccion?, cokTea, usuarioDueno, claveTemporal, nombresDueno?` | 201 tienda | 400, 409 `RUC_DUPLICADO`, 409 `USUARIO_NO_ES_DUENO` | RF02 / A03 |
 | `PATCH /tiendas/:id` | Los mismos, sin credenciales | Tienda | 404, 409 | RF02 / A03 |
 | `PATCH /tiendas/:id/estado` | `estado` | Tienda | 404 | RF02 / A03 |

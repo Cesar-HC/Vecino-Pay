@@ -8,7 +8,7 @@ import { BdService } from '../bd/bd.service';
 import { aFechaBd, aDecimalBd, dePartesBd } from '../bd/conversiones';
 import { restriccionUnica } from '../bd/errores-bd';
 import { ErrorNegocio, noExiste } from '../comun/error-negocio';
-import { aId, aTasa, Contexto, paginar } from '../comun/utilidades';
+import { aId, aTasa, Contexto, paginar, vacioANull } from '../comun/utilidades';
 import { RELOJ, Reloj } from '../reloj/reloj';
 import {
   CrearTiendaDto,
@@ -138,8 +138,8 @@ export class PlataformaService {
             razon_social: dto.razonSocial,
             nombre_comercial: dto.nombreComercial,
             giro: dto.giro,
-            telefono: dto.telefono,
-            direccion: dto.direccion,
+            telefono: vacioANull(dto.telefono),
+            direccion: vacioANull(dto.direccion),
             cok_tea: dto.cokTea === undefined ? undefined : aDecimalBd(dto.cokTea, 9),
           },
           include: { usuario: true },

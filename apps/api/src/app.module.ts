@@ -82,6 +82,8 @@ function mensajesEnEspanol(errores: ValidationError[], padre = ''): string[] {
 /** Lo que comparten el arranque real y las pruebas. */
 export function configurarApp(app: INestApplication) {
   app.setGlobalPrefix('api');
+  // Solo nginx llega a la API (publicada en 127.0.0.1): su cabecera da la IP real para el límite de intentos.
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
