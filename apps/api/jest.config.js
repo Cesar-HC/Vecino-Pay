@@ -6,6 +6,7 @@ const comun = {
 };
 
 module.exports = {
+  testSequencer: '<rootDir>/test/apoyo/orden.js',
   projects: [
     { ...comun, displayName: 'unit', roots: ['<rootDir>/test/unit'] },
     {

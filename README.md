@@ -39,7 +39,7 @@ La primera vez tarda varios minutos (descarga SQL Server y compila). Luego abre:
 - Web: http://localhost:8080
 - API: http://localhost:3000/api/salud
 - Documentación de la API (Swagger): http://localhost:3000/api/docs
-- SQL Server: `localhost,1433`, usuario `sa`, contraseña la de `.env`
+- SQL Server: `127.0.0.1,1433` (solo desde esta máquina), usuario `sa`, contraseña la de `.env`. La API usa `vecinopay_app`
 
 Para apagar: `docker compose down`. Para borrar también la base de datos: `docker compose down -v`.
 
@@ -48,7 +48,8 @@ Para apagar: `docker compose down`. Para borrar también la base de datos: `dock
 ```powershell
 npm install
 npm run db:up      # solo SQL Server en Docker
-npm test           # pruebas del motor financiero
+npm test           # pruebas del motor financiero y unitarias de la API
+npm run test:integracion   # API contra un SQL Server desechable (puerto 14333), sin tocar tus datos
 npm run dev:api    # API en http://localhost:3000
 npm run dev:web    # web en http://localhost:5173 (redirige /api a la API)
 ```
@@ -81,6 +82,19 @@ Usuarios de demo (solo para desarrollo local):
 María Huamán (DNI `40000002`) queda sin activar para demostrar la activación con el código `MDR-7K2Q`.
 Los datos que no salen del informe están marcados como `FICTICIO (demo)` en `db/init/02_semillas.sql`.
 
+## Probar la API
+
+Por defecto la demo corre con la fecha fija del 22/09/2026 (`RELOJ_FIJO`), que es la de D01 y C03.
+Para otra fecha reinicia solo la API; vacía, usa la hora real. La API no arranca en producción si tiene valor.
+
+```bash
+RELOJ_FIJO=2026-09-26T17:30:00-05:00 docker compose up -d api
+```
+
+Todas las rutas están en Swagger (http://localhost:3000/api/docs), con su botón **Authorize** para el token de
+`POST /api/auth/login`. Con el reloj fijo no hay corte automático: lo ejecuta el administrador con
+`POST /api/cortes/ejecutar`, solo para hoy y después de las 17:00:00.
+
 ## Reglas fijas del sistema
 
 - Zona horaria **America/Lima** en todos los contenedores y en los cálculos.
@@ -96,7 +110,7 @@ Los datos que no salen del informe están marcados como `FICTICIO (demo)` en `db
 | 0 | Monorepo, docker-compose, README, zona America/Lima | Aprobada |
 | 1 | Esquema SQL de 11 tablas y semillas (juegos 1 y 2) | Aprobada |
 | 2 | Motor financiero con pruebas al céntimo | Aprobada |
-| 3 | API: auth, roles, multitienda, compras, corte, listados, pagos, cronogramas, auditoría | Pendiente |
+| 3 | API: auth, roles, multitienda, compras, corte, listados, pagos, cronogramas, auditoría | En revisión |
 | 4 | Web del administrador y del dueño (A01–A05, D01–D08) | Pendiente |
 | 5 | Vista móvil del cliente (C01–C09) | Pendiente |
 | 6 | Pruebas E2E y guía para la demo | Pendiente |
