@@ -60,12 +60,9 @@ describe('configuración', () => {
 
 describe('lectura de .env', () => {
   it('conserva el # de las claves y quita comentarios y comillas', () => {
-    expect(leerEnv('A=Vecino#2026
-B="x y" # nota
-C=z # nota
-# D=1
-E=
-F=a;b=c#d')).toEqual({ A: 'Vecino#2026', B: 'x y', C: 'z', E: '', F: 'a;b=c#d' });
+    const texto = ['A=Vecino#2026', 'B="x y" # nota', 'C=z # nota', '# D=1', 'E=', 'F=a;b=c#d'].join('
+');
+    expect(leerEnv(texto)).toEqual({ A: 'Vecino#2026', B: 'x y', C: 'z', E: '', F: 'a;b=c#d' });
   });
 });
 
