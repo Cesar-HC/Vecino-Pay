@@ -74,7 +74,13 @@ export async function detalleListado(bd: Ambito, id: bigint, clienteId: bigint |
     where: { id, cliente_id: clienteId },
     include: {
       cliente: true,
-      listado_item: { include: { compra: true, cuota: { include: { compra: true } } }, orderBy: { orden: 'asc' } },
+      listado_item: {
+        include: {
+          compra: { include: { compra_detalle: { include: { producto: true } } } },
+          cuota: { include: { compra: { include: { compra_detalle: { include: { producto: true } } } } } },
+        },
+        orderBy: { orden: 'asc' },
+      },
     },
   });
   if (!l) throw noExiste('El listado');
@@ -108,6 +114,16 @@ export async function detalleListado(bd: Ambito, id: bigint, clienteId: bigint |
         orden: i.orden,
         tipo: i.tipo,
         ticket: compra?.ticket ?? null,
+        compraId: aId(compra?.id),
+        // D06: lo que se llevó el cliente. Sin precio contado: esta respuesta también la ve el cliente.
+        detalle: (compra?.compra_detalle ?? []).map((d) => ({
+          codigo: d.producto.codigo,
+          nombre: d.producto.nombre,
+          unidad: d.producto.unidad,
+          cantidad: d.cantidad.toFixed(3),
+          precioLista: aSoles(d.precio_lista),
+          subtotal: aSoles(d.subtotal),
+        })),
         cuotaNumero: i.cuota?.numero ?? null,
         fechaHoraRegistro: registro ? `${registro.fecha}T${registro.hora}` : null,
         fecha: deFechaBd(i.fecha),
@@ -218,7 +234,8 @@ export class ListadosService {
     const bd = this.bd.enTienda(c.tiendaId);
     const l = await this.conCliente(bd, id);
     if (l.estado === 'PAGADO') throw new ErrorNegocio(409, 'LISTADO_YA_PAGADO', 'Este listado ya está pagado.');
-    const fechaOperativaPago = this.hoyOperativo();
+    const real = partesLima(this.reloj.ahora());
+    const fechaOperativaPago = fechaOperativaLocal(real.fecha, real.hora);
     const a = liquidarAFecha({
       total: aDecBd(l.total),
       tedMora: aDecBd(l.cliente.ted_mora),
@@ -226,6 +243,8 @@ export class ListadosService {
       fechaOperativaPago,
     });
     return {
+      fechaReal: real.fecha,
+      horaReal: real.hora,
       fechaOperativaPago,
       diasMora: a.diasMora,
       mora: aSoles(a.mora),
@@ -272,7 +291,6 @@ export class ListadosService {
           usuarioId: c.usuarioId,
           accion: 'RECHAZO',
           tabla: 'pago',
-          registroId: l.id,
           detalle: `Pago de ${conSimbolo(l.cliente.moneda, d.montoPagado)} del listado ${l.numero} rechazado. ${r.mensaje}`,
         });
         return new ErrorNegocio(422, 'PAGO_NO_EXACTO', r.mensaje, { totalALaFecha: aSoles(r.totalALaFecha) });

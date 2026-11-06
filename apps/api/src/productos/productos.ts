@@ -7,7 +7,7 @@ import { BdService } from '../bd/bd.service';
 import { aDecBd, aDecimalBd } from '../bd/conversiones';
 import { restriccionUnica } from '../bd/errores-bd';
 import { ErrorNegocio, noExiste } from '../comun/error-negocio';
-import { aId, aSoles, ContextoDueno, Ctx, IsMonto, Opcional, PaginaDto, paginar, ParseIdPipe, Roles, vacioANull } from '../comun/utilidades';
+import { aId, aSoles, conSimbolo, ContextoDueno, Ctx, IsMonto, Opcional, PaginaDto, paginar, ParseIdPipe, Roles, vacioANull } from '../comun/utilidades';
 import { EstadoDto } from '../plataforma/plataforma.dto';
 
 const URL_IMAGEN = /^https?:\/\/\S+\.(jpg|jpeg|png)$/i;
@@ -62,6 +62,18 @@ const productoDto = (p: producto) => ({
   permiteCuotas: p.permite_cuotas,
   estado: p.estado,
 });
+
+/** A05 muestra "un cambio de precio". Los importes se enmascaran solos para el administrador. */
+function detalleEdicion(antes: producto, despues: producto): string {
+  const cambios = [
+    ['lista', antes.precio_lista, despues.precio_lista],
+    ['contado', antes.precio_contado, despues.precio_contado],
+  ] as const;
+  const precios = cambios
+    .filter(([, a, b]) => aSoles(a) !== aSoles(b))
+    .map(([nombre, a, b]) => `${nombre} de ${conSimbolo('PEN', a)} a ${conSimbolo('PEN', b)}`);
+  return precios.length ? `Cambio de precio del producto ${despues.codigo}: ${precios.join(', ')}.` : `Edición del producto ${despues.codigo}.`;
+}
 
 function exigirModalidad(finMes: boolean, cuotas: boolean) {
   if (!finMes && !cuotas) {
@@ -144,7 +156,7 @@ export class ProductosService {
             permite_cuotas: d.permiteCuotas,
           },
         });
-        await t.auditar({ usuarioId: c.usuarioId, accion: 'CAMBIO', tabla: 'producto', registroId: id, detalle: `Edición del producto ${p.codigo}.` });
+        await t.auditar({ usuarioId: c.usuarioId, accion: 'CAMBIO', tabla: 'producto', registroId: id, detalle: detalleEdicion(actual, p) });
         return productoDto(p);
       });
     } catch (e) {

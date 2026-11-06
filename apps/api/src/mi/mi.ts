@@ -7,11 +7,13 @@ import {
   fechaOperativaLocal,
   HORA_CORTE,
   interesCompra,
+  liquidarAFecha,
   partesLima,
   red,
   tasaDeDias,
   usoLimite,
 } from '@vecinopay/finance';
+import { compra, cuota, listado_item, listado_pago } from '@prisma/client';
 import { numeroCuenta } from '../auth/auth.service';
 import { BdService } from '../bd/bd.service';
 import { aDecBd, deFechaBd, dePartesBd } from '../bd/conversiones';
@@ -21,6 +23,8 @@ import { noExiste } from '../comun/error-negocio';
 import { aId, aPorcentaje, aSoles, aTasa, ContextoCliente, Ctx, ParseIdPipe, Roles } from '../comun/utilidades';
 import { detalleListado, listadoResumenDto } from '../listados/listados';
 import { RELOJ, Reloj } from '../reloj/reloj';
+
+type CompraSinListar = compra & { cuota: (cuota & { listado_item: listado_item[] })[]; listado_item: listado_item[] };
 
 /** Rutas del cliente. El id sale del contexto. Nunca devuelven VAN, contado, COK ni precio contado (RF09). */
 @Injectable()
@@ -54,6 +58,10 @@ export class MiService {
       where: { cliente_id: c.clienteId, estado: { not: 'ANULADA' } },
       orderBy: { fecha_hora: 'asc' },
     });
+    const pendientesDeListar = await bd.compra.findMany({
+      where: { cliente_id: c.clienteId, estado: 'PENDIENTE' },
+      include: { cuota: { include: { listado_item: true } }, listado_item: true },
+    });
     const semanas = new Map<string, Dec>();
     for (const x of compras) {
       const r = dePartesBd(x.fecha_hora);
@@ -66,15 +74,7 @@ export class MiService {
       cliente: { nombre: `${yo.nombres} ${yo.apellidos}`, numeroCuenta: numeroCuenta(yo.id) },
       tienda: { nombreComercial: yo.tienda.nombre_comercial },
       moneda: yo.moneda,
-      proximoPago: proximo
-        ? {
-            total: aSoles(proximo.total),
-            capital: aSoles(proximo.total_capital),
-            interes: aSoles(proximo.total_interes),
-            fecha: deFechaBd(proximo.fecha_pago),
-            diasRestantes: diasEntre(hoy, deFechaBd(proximo.fecha_pago)),
-          }
-        : null,
+      proximoPago: proximo ? this.pagoDeListado(proximo, aDecBd(yo.ted_mora), hoy) : this.pagoProyectado(pendientesDeListar, aDecBd(yo.ted), hoy),
       credito: {
         limite: aSoles(limite),
         usado: aSoles(su),
@@ -89,6 +89,54 @@ export class MiService {
         ? compras.filter((x) => deFechaBd(x.fecha_corte) === deFechaBd(ultimaFechaCorte.fecha_corte) && x.modalidad === 'FIN_MES').length
         : 0,
       tasa: { tipo: yo.tipo_tasa, valor: aTasa(yo.valor_tasa, 9), plazo: yo.plazo_tasa, capitalizacion: yo.capitalizacion },
+    };
+  }
+
+  /** Con la mora a la fecha: es lo que el pago exacto exige hoy. */
+  private pagoDeListado(l: listado_pago, tedMora: Dec, hoy: string) {
+    const fecha = deFechaBd(l.fecha_pago);
+    const a = liquidarAFecha({ total: aDecBd(l.total), tedMora, fechaPago: fecha, fechaOperativaPago: hoy });
+    return {
+      total: aSoles(l.total),
+      capital: aSoles(l.total_capital),
+      interes: aSoles(l.total_interes),
+      mora: aSoles(a.mora),
+      totalALaFecha: aSoles(a.totalALaFecha),
+      fecha,
+      diasRestantes: diasEntre(hoy, fecha),
+      proyectado: false,
+    };
+  }
+
+  /** Sin listado emitido: lo que vencerá en la próxima fecha de pago, proyectado desde las fechas guardadas. */
+  private pagoProyectado(compras: CompraSinListar[], ted: Dec, hoy: string) {
+    const filas = compras.flatMap((x) => {
+      if (x.modalidad === 'FIN_MES') {
+        if (x.listado_item.length) return [];
+        const r = dePartesBd(x.fecha_hora);
+        const fecha = deFechaBd(x.fecha_pago);
+        const capital = aDecBd(x.monto_lista);
+        return [{ fecha, capital, interes: interesCompra(capital, ted, diasEntre(fechaOperativaLocal(r.fecha, r.hora), fecha)) }];
+      }
+      return x.cuota
+        .filter((q) => q.estado === 'PENDIENTE' && q.listado_item.length === 0)
+        .map((q) => ({ fecha: deFechaBd(q.fecha_vencimiento), capital: aDecBd(q.amortizacion), interes: aDecBd(q.interes) }));
+    });
+    const fecha = filas.map((f) => f.fecha).sort()[0];
+    if (!fecha) return null;
+    const delDia = filas.filter((f) => f.fecha === fecha);
+    const capital = delDia.reduce<Dec>((s, f) => s.plus(f.capital), new Dec(0));
+    const interes = delDia.reduce<Dec>((s, f) => s.plus(f.interes), new Dec(0));
+    const total = aSoles(capital.plus(interes));
+    return {
+      total,
+      capital: aSoles(capital),
+      interes: aSoles(interes),
+      mora: '0.00',
+      totalALaFecha: total,
+      fecha,
+      diasRestantes: diasEntre(hoy, fecha),
+      proyectado: true,
     };
   }
 

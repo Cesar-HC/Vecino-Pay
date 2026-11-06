@@ -60,7 +60,7 @@ describe('estado sembrado', () => {
 
   it('C03 de Luis', async () => {
     const r = (await p.get('/mi/resumen', await p.login('45872316', 'Vecino#2026', 'CLIENTE')).expect(200)).body;
-    expect(r.proximoPago).toMatchObject({ total: '228.42', fecha: '2026-09-26', diasRestantes: 4 });
+    expect(r.proximoPago).toMatchObject({ total: '228.42', capital: '223.62', interes: '4.80', mora: '0.00', fecha: '2026-09-26', diasRestantes: 4, proyectado: false });
     expect(r.credito).toMatchObject({ limite: '500.00', disponible: '255.08' });
     expect(r.comprasDelCiclo).toBe(5);
   });
@@ -94,6 +94,17 @@ describe('estado sembrado', () => {
     const [c] = (await p.get('/mi/cuotas', maria).expect(200)).body.compras;
     expect(c).toMatchObject({ cuotaFija: '93.25', tceaPorcentaje: '51.09' });
     expect(c.proximaCuota.vence).toBe('2026-10-26');
+    // C03 sin listado emitido: la próxima cuota, proyectada.
+    const resumen = (await p.get('/mi/resumen', maria).expect(200)).body;
+    expect(resumen.proximoPago).toMatchObject({ total: '93.25', fecha: '2026-10-26', proyectado: true });
+    // Vencido el listado, Luis ve lo que el pago exacto exige hoy.
+    p.reloj.fijar('2026-09-27T10:00:00');
+    const luis = (await p.get('/mi/resumen', await p.login('45872316', 'Vecino#2026', 'CLIENTE')).expect(200)).body;
+    expect(luis.proximoPago).toMatchObject({ mora: '0.06', totalALaFecha: '228.48', diasRestantes: -1 });
+    // D01 tras el vencimiento: el próximo cobro ya es el proyectado.
+    const d01 = (await p.get('/negocio/resumen', await p.rosa()).expect(200)).body.porMoneda.PEN;
+    expect(d01.cobroProximo.fecha).toBe('2026-10-26');
+    p.reloj.fijar('2026-09-22T12:00:00');
     expect(c.explicacion).toMatchObject({ g: 11, interesGracia: '3.27' });
   });
 

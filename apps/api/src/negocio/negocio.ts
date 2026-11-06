@@ -5,7 +5,7 @@ import { BdService } from '../bd/bd.service';
 import { aDecBd, deFechaBd, dePartesBd } from '../bd/conversiones';
 import { comprasParaSu } from '../clientes/clientes';
 import { calcularSu } from '../clientes/saldos';
-import { aSoles, ContextoDueno, Ctx, Roles } from '../comun/utilidades';
+import { aSoles, aTasa, ContextoDueno, Ctx, Roles } from '../comun/utilidades';
 import { estadoEfectivo } from '../listados/listados';
 import { RELOJ, Reloj } from '../reloj/reloj';
 
@@ -57,15 +57,7 @@ export class NegocioService {
       );
 
       const noPagados = ls.filter((l) => l.estado !== 'PAGADO');
-      const proximos = noPagados
-        .filter((l) => deFechaBd(l.fecha_pago) >= hoy)
-        .sort((a, b) => (deFechaBd(a.fecha_pago) < deFechaBd(b.fecha_pago) ? -1 : 1));
-      const cobroFecha = proximos.length ? deFechaBd(proximos[0].fecha_pago) : null;
-      const cobroTotal = proximos
-        .filter((l) => deFechaBd(l.fecha_pago) === cobroFecha)
-        .reduce<Dec>((s, l) => s.plus(aDecBd(l.total)), cero());
-
-      const cortes = ls.map((l) => deFechaBd(l.fecha_corte)).filter((f) => f <= hoy).sort();
+            const cortes = ls.map((l) => deFechaBd(l.fecha_corte)).filter((f) => f <= hoy).sort();
       const ultimoCorte = cortes[cortes.length - 1];
       const interesesDelCiclo = ls
         .filter((l) => deFechaBd(l.fecha_corte) === ultimoCorte)
@@ -111,9 +103,11 @@ export class NegocioService {
       }
 
       const orden = <T,>(m: Map<string, T>) => [...m.entries()].sort(([a], [b]) => (a < b ? -1 : 1));
+      // Lo que se cobrará en la próxima fecha de pago, con lo aún no listado proyectado (D01).
+      const proximo = orden(cobros).find(([fecha]) => fecha >= hoy);
       porMoneda[moneda] = {
         capitalPorCobrar: aSoles(capitalPorCobrar(usos.map((u) => u.su))),
-        cobroProximo: cobroFecha ? { fecha: cobroFecha, total: aSoles(cobroTotal) } : null,
+        cobroProximo: proximo ? { fecha: proximo[0], total: aSoles(proximo[1]) } : null,
         interesesDelCiclo: aSoles(interesesDelCiclo),
         carteraEnMora: aSoles(carteraEnMora),
         vanAcumulado: aSoles(cs.reduce<Dec>((s, x) => (x.van ? s.plus(aDecBd(x.van)) : s), cero())),
@@ -131,7 +125,8 @@ export class NegocioService {
           .map((f) => ({ codigo: f.codigo, nombre: f.nombre, cantidad: f.cantidad.toFixed(3), subtotal: aSoles(f.subtotal) })),
       };
     }
-    return { fecha: hoy, clientes: clientes.length, porMoneda };
+    const tienda = await this.bd.transaccionEnTienda(c.tiendaId, (t) => t.tienda());
+    return { fecha: hoy, cokTea: aTasa(tienda.cok_tea, 9), clientes: clientes.length, porMoneda };
   }
 }
 

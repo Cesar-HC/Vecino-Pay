@@ -345,7 +345,7 @@ Con reloj fijo no hay cron: dispararía a la hora real con una fecha ficticia. L
 2. Si `estado = PAGADO`: 409 `LISTADO_YA_PAGADO`.
 3. `ahora` tras el bloqueo; `partesLima`; `fechaOperativaLocal`.
 4. `registrarPago` del motor con los totales del listado, `ted_mora` guardada y `montoPagado`.
-5. **Rechazado:** audita `RECHAZO pago` con `registro_id = listado.id` y responde 422 `PAGO_NO_EXACTO`, con el mensaje del motor y `totalALaFecha`.
+5. **Rechazado:** audita `RECHAZO pago` con `registro_id` NULL y el número de listado en `detalle`, igual que el rechazo de compra, y responde 422 `PAGO_NO_EXACTO`, con el mensaje del motor y `totalALaFecha`.
 6. **Aceptado,** todo en la misma transacción:
    - `pago`: `fecha` = fecha **calendario** real; `monto`, medio, número de operación e imputación (decisión de Adrián).
    - Si `diasMora > 0`: ítem de mora (sección 10.2).

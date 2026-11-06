@@ -107,6 +107,9 @@ describe('Juego 1 (T16, T17)', () => {
     expect(d.items.map((i: { interes: string }) => i.interes)).toEqual(['1.63', '0.93', '1.40', '0.41', '0.43']);
     expect(d.items.map((i: { total: string }) => i.total)).toEqual(['45.83', '33.73', '65.22', '30.91', '52.73']);
     expect(d.items.map((i: { posteriorAlCorte: boolean }) => i.posteriorAlCorte)).toEqual([false, true, false, true, false]);
+    // D06: el detalle de cada compra.
+    expect(d.items[0].detalle.map((x: { codigo: string; cantidad: string }) => [x.codigo, x.cantidad])).toEqual([['P001', '2.350'], ['P002', '1.000']]);
+    expect(JSON.stringify(d.items)).not.toContain('recioContado');
   });
 
   it('repetir el corte no emite ni audita nada', async () => {
@@ -168,6 +171,9 @@ describe('Escenarios de pago (T17)', () => {
     p.reloj.fijar('2026-09-26T17:30:00');
     const l = (await p.get(`/listados/${listado}/liquidacion`, dueno).expect(200)).body;
     expect([l.diasMora, l.mora, l.totalALaFecha]).toEqual([1, '0.06', '228.48']);
+    expect([l.fechaReal, l.horaReal, l.fechaOperativaPago]).toEqual(['2026-09-26', '17:30:00', '2026-09-27']);
+    expect(l.imputacion).toEqual({ mora: '0.06', interes: '4.80', capital: '223.62' });
+    expect(l.disponibleDespues).toBe('500.00');
     const r = await pagar(listado, '228.48').expect(201);
     expect(r.body.imputacion.mora).toBe('0.06');
     expect(r.body.pago.fecha).toBe('2026-09-26');
@@ -231,7 +237,13 @@ describe('Juego 2 (T18 a T20, T22)', () => {
       ultimaCuota: '93.26',
       tceaPorcentaje: '51.09',
       van: '20.01',
+      tirDiaria: '0.0011469966',
+      cokTea: '0.200000000',
+      sumaValorActual: '269.81',
     });
+    expect(s.cuotas.filas.map((f: { t: number }) => f.t)).toEqual([41, 72, 102]);
+    expect(s.cuotas.filas.map((f: { valorActual: string }) => f.valorActual)).toEqual(['91.33', '89.91', '88.56']);
+    expect(s.lineas).toHaveLength(2);
     expect(await p.bd.compra.count()).toBe(compras);
   });
 
@@ -243,6 +255,13 @@ describe('Juego 2 (T18 a T20, T22)', () => {
     expect(k.filas.map((f: { diasPeriodo: number }) => f.diasPeriodo)).toEqual([30, 31, 30]);
     expect(k.filas.map((f: { monto: string }) => f.monto)).toEqual(['93.25', '93.25', '93.26']);
     expect(k.filas.map((f: { saldoFinal: string }) => f.saldoFinal)).toEqual(['176.96', '90.11', '0.00']);
+    expect(k.filas.map((f: { vence: string }) => f.vence)).toEqual(['2026-10-26', '2026-11-26', '2026-12-26']);
+    expect(k.filas.map((f: { saldoInicial: string }) => f.saldoInicial)).toEqual(['261.07', '176.96', '90.11']);
+    expect(k.filas.map((f: { interes: string }) => f.interes)).toEqual(['9.14', '6.40', '3.15']);
+    expect(k.filas.map((f: { amortizacion: string }) => f.amortizacion)).toEqual(['84.11', '86.85', '90.11']);
+    expect(k.flujoCaja.filas[0].flujo).toBe('-249.80');
+    expect(k.flujoCaja.filas.slice(1).map((f: { t: number }) => f.t)).toEqual([41, 72, 102]);
+    expect(k.flujoCaja.cokTea).toBe('0.200000000');
     expect(k.totales).toEqual({ interes: '18.69', amortizacion: '261.07', monto: '279.76' });
     expect(k.resumen).toMatchObject({ interesesTotales: '21.96', tirDiaria: '0.0011469966', tceaPorcentaje: '51.09', van: '20.01' });
     expect(k.flujoCaja.filas.slice(1).map((f: { valorActual: string }) => f.valorActual)).toEqual(['91.33', '89.91', '88.56']);

@@ -154,9 +154,23 @@ describe('matriz de auditoría (8.1)', () => {
     reloj.fijar(HORA.replace('09-10', '09-13'));
     const rechazo = await p.post(`/listados/${l.id}/pago`, t.token, { montoPagado: '1.00', medioPago: 'Efectivo' }).expect(422);
     expect(rechazo.body.codigo).toBe('PAGO_NO_EXACTO');
-    const a = await p.bd.auditoria.findFirstOrThrow({ where: { tabla: 'pago', accion: 'RECHAZO', registro_id: BigInt(l.id) } });
+    const a = await p.bd.auditoria.findFirstOrThrow({ where: { tabla: 'pago', accion: 'RECHAZO', detalle: { contains: l.numero } } });
     expect(a.usuario_id).not.toBeNull();
+    expect(a.registro_id).toBeNull(); // Un rechazo no crea pago: no apunta a ninguna fila de esa tabla.
     reloj.fijar(HORA);
+  });
+
+  it('el cambio de precio se distingue y su importe se enmascara para el administrador', async () => {
+    const creado = (await p.post('/productos', t.token, { codigo: `Q${dniUnico()}`, nombre: 'X', unidad: 'UND', precioContado: '1.00', precioLista: '1.10', permiteFinMes: true, permiteCuotas: false }).expect(201)).body;
+    await p.patch(`/productos/${creado.id}`, t.token, { nombre: 'Otro' }).expect(200);
+    const sinPrecio = await p.bd.auditoria.findFirstOrThrow({ where: { tabla: 'producto', registro_id: BigInt(creado.id), accion: 'CAMBIO' } });
+    expect(sinPrecio.detalle).toContain('Edición');
+    await p.patch(`/productos/${creado.id}`, t.token, { precioLista: '1.99' }).expect(200);
+    const conPrecio = await p.bd.auditoria.findFirstOrThrow({ where: { tabla: 'producto', registro_id: BigInt(creado.id), accion: 'CAMBIO' }, orderBy: { id: 'desc' } });
+    expect(conPrecio.detalle).toBe(`Cambio de precio del producto ${creado.codigo}: lista de S/ 1.10 a S/ 1.99.`);
+    const filas = (await p.get(`/auditoria?tamano=200&accion=CAMBIO&tiendaId=${t.tiendaId}`, admin).expect(200)).body.items as { registroId: string; detalle: string }[];
+    const visto = filas.find((x) => x.registroId === creado.id && x.detalle.startsWith('Cambio de precio')) as { detalle: string };
+    expect(visto.detalle).toBe(`Cambio de precio del producto ${creado.codigo}: lista de S/ *** a S/ ***.`);
   });
 
   it('A05 no muestra ningún importe de lo que la API escribe', async () => {

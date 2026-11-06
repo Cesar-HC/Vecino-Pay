@@ -174,6 +174,16 @@ export class ComprasService {
       const r = await calcularCompra(t.bd, aDecBd(tienda.cok_tea), dto, t.ahora());
       const dias = diasEntre(r.fechaOperativa, r.ciclo.fechaPago);
       return {
+        lineas: r.detalle.map((d) => ({
+          productoId: aId(d.producto.id),
+          codigo: d.producto.codigo,
+          nombre: d.producto.nombre,
+          cantidad: d.cantidad.toFixed(3),
+          precioLista: aSoles(d.precioLista),
+          precioContado: aSoles(d.precioContado),
+          subtotal: aSoles(d.subtotal),
+          subtotalContado: aSoles(d.subtotalContado),
+        })),
         montoLista: aSoles(r.montoLista),
         montoContado: aSoles(r.montoContado),
         fechaOperativa: r.fechaOperativa,
@@ -201,10 +211,15 @@ export class ComprasService {
               tcea: aTasa(cuantizarTasa(r.venta.indicadores.tcea, 10), 10),
               tceaPorcentaje: aPorcentaje(r.venta.indicadores.tcea),
               van: aSoles(r.venta.indicadores.van),
-              filas: r.venta.plan.filas.map((f) => ({
+              tirDiaria: r.venta.indicadores.tirDiaria.toFixed(10),
+              cokTea: aTasa(tienda.cok_tea, 9),
+              sumaValorActual: aSoles(r.venta.indicadores.sumaVa),
+              filas: r.venta.plan.filas.map((f, i) => ({
                 numero: f.k,
                 vence: f.vence,
                 diasPeriodo: f.diasPeriodo,
+                t: f.t,
+                valorActual: aSoles(r.venta!.indicadores.valoresActuales[i]),
                 saldoInicial: aSoles(f.saldoInicial),
                 interes: aSoles(f.interes),
                 amortizacion: aSoles(f.amortizacion),
@@ -237,7 +252,7 @@ export class ComprasService {
           usuarioId: c.usuarioId,
           accion: 'RECHAZO',
           tabla: 'compra',
-          detalle: `Compra de ${conSimbolo(r.cliente.moneda, r.montoLista)} de ${r.cliente.nombres} ${r.cliente.apellidos} rechazada. ${r.limite.mensaje}`,
+          detalle: `Compra de ${conSimbolo(r.cliente.moneda, r.montoLista)} de ${r.cliente.nombres} ${r.cliente.apellidos}. ${r.limite.mensaje}`,
         });
         return new ErrorNegocio(422, 'LIMITE_EXCEDIDO', r.limite.mensaje, { disponible: aSoles(r.limite.disponible) });
       }
@@ -342,6 +357,7 @@ export class ComprasService {
         unidad: d.producto.unidad,
         cantidad: d.cantidad.toFixed(3),
         precioLista: aSoles(d.precio_lista),
+        precioContado: aSoles(d.precio_contado),
         subtotal: aSoles(d.subtotal),
       })),
     };
@@ -430,6 +446,7 @@ export class ComprasService {
         monto: aSoles(totalMonto),
       },
       flujoCaja: {
+        cokTea: aTasa(x.tienda.cok_tea, 9),
         filas: [
           { momento: 0, t: 0, flujo: aSoles(contado.negated()), valorActual: aSoles(contado.negated()) },
           ...filas.map((f, i) => ({
