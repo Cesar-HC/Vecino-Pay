@@ -1,0 +1,32 @@
+{
+  "name": "vecinopay",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VecinoPay: reemplazo digital del cuaderno del fiado (FIE 7651, ciclo 2026-20)",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build:finance": "npm run build -w packages/finance",
+    "build": "npm run build:finance && npm run build -w apps/api && npm run build -w apps/web",
+    "dev:api": "npm run build:finance && npm run start:dev -w apps/api",
+    "dev:web": "npm run dev -w apps/web",
+    "test": "npm run test -w packages/finance",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "db:up": "docker compose up -d db db-init",
+    "up": "docker compose up -d --build",
+    "down": "docker compose down"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.14.0",
+    "eslint": "^9.14.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.13.0"
+  }
+}

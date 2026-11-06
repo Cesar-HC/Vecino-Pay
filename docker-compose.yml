@@ -1,0 +1,64 @@
+name: vecinopay
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: 'Y'
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-VecinoPay#2026}
+      TZ: America/Lima
+    ports:
+      - '${DB_PORT:-1433}:1433'
+    volumes:
+      - datos-sql:/var/opt/mssql
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          '/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -C -Q "SELECT 1" -b -o /dev/null',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  # Aplica los scripts de db/init y termina.
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-VecinoPay#2026}
+    volumes:
+      - ./db:/db:ro
+    entrypoint: ['/bin/bash', '/db/init/ejecutar.sh']
+    restart: 'no'
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      PORT: 3000
+      TZ: America/Lima
+      JWT_SECRET: ${JWT_SECRET:-cambia-este-secreto}
+      DATABASE_URL: sqlserver://db:1433;database=${DB_NAME:-VecinoPay};user=sa;password=${MSSQL_SA_PASSWORD:-VecinoPay#2026};encrypt=true;trustServerCertificate=true
+    ports:
+      - '${API_PORT:-3000}:3000'
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    depends_on:
+      - api
+    ports:
+      - '${WEB_PORT:-8080}:80'
+
+volumes:
+  datos-sql:
