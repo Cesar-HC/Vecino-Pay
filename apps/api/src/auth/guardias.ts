@@ -76,11 +76,14 @@ export class GuardRoles implements CanActivate {
   }
 }
 
-/** La clave incluye el usuario o DNI: detrás del nginx todas las peticiones llegan con la misma IP. */
+/**
+ * Por usuario o DNI, normalizado como lo compara la BD (ignora mayúsculas y espacios finales): detrás del nginx
+ * todas las peticiones llegan con la misma IP. Además hay un límite por IP, ante el rociado de claves entre usuarios.
+ */
 @Injectable()
 export class GuardIntentos extends ThrottlerGuard {
   protected async getTracker(req: Record<string, unknown>): Promise<string> {
     const cuerpo = (req.body ?? {}) as { username?: unknown; dni?: unknown };
-    return `${String(req.ip)}:${String(cuerpo.username ?? cuerpo.dni ?? '')}`;
+    return String(cuerpo.username ?? cuerpo.dni ?? '').trim().toLowerCase();
   }
 }

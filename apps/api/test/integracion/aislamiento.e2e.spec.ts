@@ -172,6 +172,7 @@ describe('aislamiento entre tiendas', () => {
 
   it.each(['/productos', '/clientes', '/compras', '/listados'])('GET %s de B no contiene nada de A', async (ruta) => {
     const r = (await p.get(ruta, b.token).expect(200)).body.items as { id: string }[];
+    if (ruta === '/productos') expect(r.map((x) => x.id).filter((id) => Object.values(a.productos).includes(id))).toEqual([]);
     if (ruta === '/compras') expect(r.map((x) => x.id)).not.toContain(compraA);
     if (ruta === '/listados') expect(r.map((x) => x.id)).not.toContain(listadoA);
     if (ruta === '/clientes') expect(r.map((x) => x.id)).not.toContain(clienteA);
@@ -332,7 +333,7 @@ describe('concurrencia', () => {
 
   it('2 compras simultáneas que juntas superan el límite: una 201 y otra 422', async () => {
     const cliente = (await p.post('/clientes', c.token, { ...LUIS(dniUnico()), limiteCredito: '100.00' }).expect(201)).body.id;
-    const precio = (await p.get('/productos?texto=P003', c.token)).body.items[0];
+    const precio = (await p.get('/productos?texto=P001', c.token)).body.items[0];
     const cantidad = (60 / Number(precio.precioLista)).toFixed(3);
     const r = await Promise.all([p.post('/compras', c.token, compra(cliente, cantidad)), p.post('/compras', c.token, compra(cliente, cantidad))]);
     expect(r.map((x) => x.status).sort()).toEqual([201, 422]);
@@ -367,6 +368,7 @@ describe('concurrencia', () => {
     p.reloj.fijar('2026-09-16T17:00:01');
     const cortes = await Promise.all([p.post('/cortes/ejecutar', admin), p.post('/cortes/ejecutar', admin)]);
     expect(cortes.map((x) => x.status)).toEqual([200, 200]);
+    expect(cortes.flatMap((x) => x.body.errores)).toEqual([]);
     const listados = (await p.get(`/listados?clienteId=${cliente}`, c.token)).body.items;
     expect(listados).toHaveLength(1);
     expect(await p.bd.listado_item.count({ where: { listado_id: BigInt(listados[0].id) } })).toBe(1);

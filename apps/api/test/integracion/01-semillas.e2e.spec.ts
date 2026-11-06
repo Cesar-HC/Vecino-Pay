@@ -1,4 +1,5 @@
 // Estado sembrado al 22/09/2026 (diseño de fase 3, 13.5). Corre sobre las semillas; la activación se consume una vez.
+import { Dec, diasEntre, interesCompra } from '@vecinopay/finance';
 import { dniUnico, LUIS, Prueba } from '../apoyo/app';
 
 jest.setTimeout(60000);
@@ -37,7 +38,10 @@ describe('estado sembrado', () => {
     });
     expect(pen.usoLimite.map((u: { usoPorcentaje: string }) => u.usoPorcentaje)).toEqual(['49.0', '43.0']);
     expect(pen.cobrosPorFecha[0]).toEqual({ fecha: '2026-09-26', total: '228.42' });
-    expect(pen.cobrosPorFecha.slice(2)).toEqual([
+    // 26/10: T-000301 con su interés proyectado (del motor, no del informe) y la cuota 1 de María.
+    const interes = interesCompra('21.30', '0.001032653810255', diasEntre('2026-09-21', '2026-10-26'));
+    expect(pen.cobrosPorFecha.slice(1)).toEqual([
+      { fecha: '2026-10-26', total: new Dec('21.30').plus(interes).plus('93.25').toFixed(2) },
       { fecha: '2026-11-26', total: '93.25' },
       { fecha: '2026-12-26', total: '93.26' },
     ]);

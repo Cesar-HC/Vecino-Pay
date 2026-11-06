@@ -7,7 +7,7 @@ import { BdService } from '../bd/bd.service';
 import { aDecBd, aDecimalBd } from '../bd/conversiones';
 import { restriccionUnica } from '../bd/errores-bd';
 import { ErrorNegocio, noExiste } from '../comun/error-negocio';
-import { aId, aSoles, ContextoDueno, Ctx, IsMonto, ParseIdPipe, Roles } from '../comun/utilidades';
+import { aId, aSoles, ContextoDueno, Ctx, IsMonto, PaginaDto, paginar, ParseIdPipe, Roles } from '../comun/utilidades';
 import { EstadoDto } from '../plataforma/plataforma.dto';
 
 const URL_IMAGEN = /^https?:\/\/\S+\.(jpg|jpeg|png)$/i;
@@ -20,8 +20,8 @@ export class CrearProductoDto {
   @IsString() @Length(1, 5) unidad: string;
   @IsOptional() @IsString() @MaxLength(150) proveedor?: string;
   @IsOptional() @Matches(URL_IMAGEN, { message: 'La imagen debe ser una URL .jpg o .png.' }) @MaxLength(300) imagenUrl?: string;
-  @IsMonto() precioContado: string;
-  @IsMonto() precioLista: string;
+  @IsMonto(8) precioContado: string;
+  @IsMonto(8) precioLista: string;
   @IsBoolean() permiteFinMes: boolean;
   @IsBoolean() permiteCuotas: boolean;
 }
@@ -34,13 +34,13 @@ export class EditarProductoDto {
   @IsOptional() @IsString() @Length(1, 5) unidad?: string;
   @IsOptional() @IsString() @MaxLength(150) proveedor?: string;
   @IsOptional() @Matches(URL_IMAGEN, { message: 'La imagen debe ser una URL .jpg o .png.' }) @MaxLength(300) imagenUrl?: string;
-  @IsOptional() @IsMonto() precioContado?: string;
-  @IsOptional() @IsMonto() precioLista?: string;
+  @IsOptional() @IsMonto(8) precioContado?: string;
+  @IsOptional() @IsMonto(8) precioLista?: string;
   @IsOptional() @IsBoolean() permiteFinMes?: boolean;
   @IsOptional() @IsBoolean() permiteCuotas?: boolean;
 }
 
-export class FiltroProductosDto {
+export class FiltroProductosDto extends PaginaDto {
   @IsOptional() @IsString() texto?: string;
   @IsOptional() @IsIn(['ACTIVO', 'INACTIVO']) estado?: string;
   @IsOptional() @IsIn(['FIN_MES', 'CUOTAS']) modalidad?: string;
@@ -73,23 +73,22 @@ export class ProductosService {
   constructor(private readonly bd: BdService) {}
 
   private conflicto(e: unknown): never {
-    if (restriccionUnica(e)?.includes('codigo')) {
+    if (restriccionUnica(e)?.includes('producto')) {
       throw new ErrorNegocio(409, 'CODIGO_DUPLICADO', 'Ya tienes un producto con ese código.');
     }
     throw e;
   }
 
   async listar(c: ContextoDueno, f: FiltroProductosDto) {
-    const items = await this.bd.enTienda(c.tiendaId).producto.findMany({
-      where: {
-        estado: f.estado,
-        permite_fin_mes: f.modalidad === 'FIN_MES' ? true : undefined,
-        permite_cuotas: f.modalidad === 'CUOTAS' ? true : undefined,
-        ...(f.texto ? { OR: [{ nombre: { contains: f.texto } }, { codigo: { contains: f.texto } }] } : {}),
-      },
-      orderBy: { codigo: 'asc' },
-    });
-    return { items: items.map(productoDto), total: items.length };
+    const bd = this.bd.enTienda(c.tiendaId);
+    const where = {
+      estado: f.estado,
+      permite_fin_mes: f.modalidad === 'FIN_MES' ? true : undefined,
+      permite_cuotas: f.modalidad === 'CUOTAS' ? true : undefined,
+      ...(f.texto ? { OR: [{ nombre: { contains: f.texto } }, { codigo: { contains: f.texto } }] } : {}),
+    };
+    const items = await bd.producto.findMany({ where, orderBy: { codigo: 'asc' }, ...paginar(f) });
+    return { items: items.map(productoDto), total: await bd.producto.count({ where }) };
   }
 
   async crear(c: ContextoDueno, d: CrearProductoDto) {

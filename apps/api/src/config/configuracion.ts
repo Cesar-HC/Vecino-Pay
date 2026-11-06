@@ -4,6 +4,7 @@ export interface Configuracion {
   jwtSecreto: string;
   relojFijo: string | null;
   corsOrigenes: string[];
+  avisos: string[];
 }
 
 const SECRETOS_CONOCIDOS = ['cambia-este-secreto', 'secret', 'changeme', 'jwt-secret'];
@@ -40,7 +41,7 @@ export function cargarConfiguracion(env: Record<string, string | undefined>): Co
   const url = env.DATABASE_URL ?? '';
   if (!url) problemas.push('Falta DATABASE_URL.');
   else {
-    if (/(^|;)\s*user\s*=\s*sa\s*(;|$)/i.test(url)) problemas.push('DATABASE_URL no puede usar el usuario sa.');
+    if (/(^|;)\s*(user|username|uid|user id)\s*=\s*sa\s*(;|$)/i.test(url)) problemas.push('DATABASE_URL no puede usar el usuario sa.');
     if (produccion && url.includes(CLAVE_POR_DEFECTO)) {
       problemas.push('DATABASE_URL en producción no puede usar la contraseña por defecto.');
     }
@@ -49,11 +50,13 @@ export function cargarConfiguracion(env: Record<string, string | undefined>): Co
   const cors = env.CORS_ORIGENES?.split(',').map((o) => o.trim()).filter(Boolean) ?? [];
 
   if (problemas.length) throw new ConfiguracionInvalida(problemas);
+  const avisos = SECRETOS_CONOCIDOS.includes(jwt) ? ['JWT_SECRET es un valor conocido: úsalo solo en desarrollo.'] : [];
   return {
     entorno,
     puerto: Number(env.PORT ?? 3000),
     jwtSecreto: jwt,
     relojFijo,
     corsOrigenes: cors.length ? cors : ['http://localhost:5173', 'http://localhost:8080'],
+    avisos,
   };
 }

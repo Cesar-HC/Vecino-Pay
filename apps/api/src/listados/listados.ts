@@ -15,18 +15,17 @@ import {
   tea,
   valorHoy,
 } from '@vecinopay/finance';
-import { IsIn, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import { armarDetalle } from '../auditoria/detalle';
 import { Ambito } from '../bd/ambito-tienda';
 import { BdService } from '../bd/bd.service';
 import { aDecBd, aFechaBd, deFechaBd, dePartesBd } from '../bd/conversiones';
+import { restriccionUnica } from '../bd/errores-bd';
 import { comprasParaSu } from '../clientes/clientes';
 import { calcularSu, CompraParaSu } from '../clientes/saldos';
 import { ErrorNegocio, noExiste } from '../comun/error-negocio';
-import { aId, aSoles, aTasa, ContextoDueno, Ctx, IsIdTexto, IsMonto, ParseIdPipe, Roles } from '../comun/utilidades';
+import { aId, aSoles, aTasa, conSimbolo, ContextoDueno, Ctx, IsFecha, IsIdTexto, IsMonto, PaginaDto, paginar, ParseIdPipe, Roles } from '../comun/utilidades';
 import { RELOJ, Reloj } from '../reloj/reloj';
-
-const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 
 export class PagoDto {
   @IsMonto() montoPagado: string;
@@ -34,14 +33,14 @@ export class PagoDto {
   @IsOptional() @IsString() @MaxLength(30) numeroOperacion?: string;
 }
 
-export class FiltroListadosDto {
+export class FiltroListadosDto extends PaginaDto {
   @IsOptional() @IsIdTexto() clienteId?: string;
   @IsOptional() @IsIn(['EMITIDO', 'PAGADO', 'VENCIDO']) estado?: string;
-  @IsOptional() @Matches(FECHA) fechaCorte?: string;
+  @IsOptional() @IsFecha() fechaCorte?: string;
 }
 
 export class ValorHoyDto {
-  @IsOptional() @Matches(FECHA) fecha?: string;
+  @IsOptional() @IsFecha() fecha?: string;
 }
 
 /** Vencido si no está pagado y su fecha de pago ya pasó. Se calcula al leer: con reloj fijo el trabajo diario no corre. */
@@ -178,15 +177,14 @@ export class ListadosService {
 
   async listar(c: ContextoDueno, f: FiltroListadosDto) {
     const hoy = this.hoyOperativo();
-    const filas = await this.bd.enTienda(c.tiendaId).listado_pago.findMany({
-      where: {
-        cliente_id: f.clienteId ? BigInt(f.clienteId) : undefined,
-        estado: f.estado,
-        fecha_corte: f.fechaCorte ? aFechaBd(f.fechaCorte) : undefined,
-      },
-      orderBy: [{ fecha_corte: 'desc' }, { id: 'desc' }],
-    });
-    return { items: filas.map((l) => listadoResumenDto(l, hoy)), total: filas.length };
+    const bd = this.bd.enTienda(c.tiendaId);
+    const where = {
+      cliente_id: f.clienteId ? BigInt(f.clienteId) : undefined,
+      estado: f.estado,
+      fecha_corte: f.fechaCorte ? aFechaBd(f.fechaCorte) : undefined,
+    };
+    const filas = await bd.listado_pago.findMany({ where, orderBy: [{ fecha_corte: 'desc' }, { id: 'desc' }], ...paginar(f) });
+    return { items: filas.map((l) => listadoResumenDto(l, hoy)), total: await bd.listado_pago.count({ where }) };
   }
 
   obtener(c: ContextoDueno, id: bigint) {
@@ -238,7 +236,17 @@ export class ListadosService {
   }
 
   async pagar(c: ContextoDueno, id: bigint, d: PagoDto) {
-    const resultado = await this.bd.transaccionEnTienda(c.tiendaId, async (t) => {
+    const resultado = await this.registrarPago(c, id, d).catch((e) => {
+      // Último recurso: UQ_pago_listado, si dos pagos pasaran el bloqueo.
+      if (restriccionUnica(e)) throw new ErrorNegocio(409, 'LISTADO_YA_PAGADO', 'Este listado ya está pagado.');
+      throw e;
+    });
+    if (resultado instanceof ErrorNegocio) throw resultado;
+    return resultado;
+  }
+
+  private registrarPago(c: ContextoDueno, id: bigint, d: PagoDto) {
+    return this.bd.transaccionEnTienda(c.tiendaId, async (t) => {
       const previo = await t.bd.listado_pago.findFirst({ where: { id }, select: { cliente_id: true } });
       if (!previo) throw noExiste('El listado');
       await t.bloquearCliente(previo.cliente_id);
@@ -265,7 +273,7 @@ export class ListadosService {
           accion: 'RECHAZO',
           tabla: 'pago',
           registroId: l.id,
-          detalle: `Pago de ${d.montoPagado} del listado ${l.numero} rechazado. ${r.mensaje}`,
+          detalle: `Pago de ${conSimbolo(l.cliente.moneda, d.montoPagado)} del listado ${l.numero} rechazado. ${r.mensaje}`,
         });
         return new ErrorNegocio(422, 'PAGO_NO_EXACTO', r.mensaje, { totalALaFecha: aSoles(r.totalALaFecha) });
       }
@@ -336,7 +344,7 @@ export class ListadosService {
         accion: 'ALTA',
         tabla: 'pago',
         registroId: pago.id,
-        detalle: armarDetalle(`Pago de ${aSoles(r.totalALaFecha)} del listado ${l.numero} por ${d.medioPago}.`, {
+        detalle: armarDetalle(`Pago de ${conSimbolo(l.cliente.moneda, r.totalALaFecha)} del listado ${l.numero} por ${d.medioPago}.`, {
           hora: p.hora,
           fecha: p.fecha,
           fechaOperativa: fechaOperativaPago,
@@ -363,8 +371,6 @@ export class ListadosService {
         disponible: aSoles(creditoDisponible(aDecBd(l.cliente.limite_credito), su)),
       };
     });
-    if (resultado instanceof ErrorNegocio) throw resultado;
-    return resultado;
   }
 }
 

@@ -54,7 +54,8 @@ export default tseslint.config(
   },
   {
     // Los servicios de operación no pueden salir del ámbito de su tienda.
-    files: ['apps/api/src/{productos,clientes,compras,listados,negocio,mi}/**/*.ts'],
+    files: ['apps/api/src/**/*.ts'],
+    ignores: ['apps/api/src/{bd,reloj,auth,auditoria,plataforma,cortes}/**'],
     rules: {
       'no-restricted-syntax': [
         'error',

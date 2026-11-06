@@ -1,5 +1,4 @@
 import 'reflect-metadata';
-import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -7,12 +6,12 @@ import helmet from 'helmet';
 import { Settings } from 'luxon';
 import { ZONA_HORARIA } from '@vecinopay/finance';
 import { AppModule, configurarApp } from './app.module';
+import { cargarEnv } from './config/cargar-env';
 import { cargarConfiguracion, ConfiguracionInvalida } from './config/configuracion';
 
 async function bootstrap() {
   // En desarrollo local toma ../../.env; en Docker no existe y manda "environment".
-  const env = resolve(__dirname, '../../../.env');
-  if (existsSync(env)) process.loadEnvFile(env);
+  cargarEnv(resolve(__dirname, '../../../.env'));
 
   let config;
   try {
@@ -22,6 +21,8 @@ async function bootstrap() {
     console.error(e.message);
     process.exit(1);
   }
+
+  config.avisos.forEach((a) => console.warn(a));
 
   // Todo el sistema trabaja en hora de Lima, sin importar la zona del servidor.
   Settings.defaultZone = ZONA_HORARIA;

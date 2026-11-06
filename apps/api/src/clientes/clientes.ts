@@ -20,7 +20,7 @@ import {
   validarTasa,
 } from '@vecinopay/finance';
 import { Type } from 'class-transformer';
-import { Equals, IsIn, IsInt, IsOptional, IsString, Length, Matches, MaxLength, ValidateNested } from 'class-validator';
+import { Equals, IsDefined, IsIn, IsInt, IsOptional, IsString, Length, Matches, MaxLength, ValidateNested } from 'class-validator';
 import { Inject } from '@nestjs/common';
 import { armarDetalle } from '../auditoria/detalle';
 import { Ambito } from '../bd/ambito-tienda';
@@ -28,7 +28,7 @@ import { BdService } from '../bd/bd.service';
 import { aDecBd, aDecimalBd, deFechaBd } from '../bd/conversiones';
 import { restriccionUnica } from '../bd/errores-bd';
 import { ErrorNegocio, noExiste } from '../comun/error-negocio';
-import { aId, aSoles, aTasa, ContextoDueno, Ctx, IsMonto, IsTasaTexto, ParseIdPipe, Roles } from '../comun/utilidades';
+import { aId, aSoles, aTasa, ContextoDueno, Ctx, IsMonto, IsTasaTexto, PaginaDto, paginar, ParseIdPipe, Roles } from '../comun/utilidades';
 import { EstadoDto } from '../plataforma/plataforma.dto';
 import { RELOJ, Reloj } from '../reloj/reloj';
 import { calcularSu, CompraParaSu } from './saldos';
@@ -52,8 +52,8 @@ export class CrearClienteDto {
   @IsInt() maxMeses: number;
   @IsInt() diaCorte: number;
   @IsInt() diaPago: number;
-  @ValidateNested() @Type(() => TasaDto) tasa: TasaDto;
-  @ValidateNested() @Type(() => TasaDto) tasaMora: TasaDto;
+  @IsDefined() @ValidateNested() @Type(() => TasaDto) tasa: TasaDto;
+  @IsDefined() @ValidateNested() @Type(() => TasaDto) tasaMora: TasaDto;
 }
 
 export class EditarClienteDto {
@@ -71,10 +71,10 @@ export class EditarClienteDto {
 }
 
 export class CalcularTasasDto {
-  @ValidateNested() @Type(() => TasaDto) tasa: TasaDto;
+  @IsDefined() @ValidateNested() @Type(() => TasaDto) tasa: TasaDto;
 }
 
-export class FiltroClientesDto {
+export class FiltroClientesDto extends PaginaDto {
   @IsOptional() @IsString() texto?: string;
   @IsOptional() @IsIn(['ACTIVO', 'INACTIVO']) estado?: string;
 }
@@ -163,17 +163,15 @@ export class ClientesService {
 
   async listar(c: ContextoDueno, f: FiltroClientesDto) {
     const bd = this.bd.enTienda(c.tiendaId);
-    const filas = await bd.cliente.findMany({
-      where: {
-        estado: f.estado,
-        ...(f.texto
-          ? { OR: [{ dni: { contains: f.texto } }, { nombres: { contains: f.texto } }, { apellidos: { contains: f.texto } }] }
-          : {}),
-      },
-      orderBy: { id: 'asc' },
-    });
+    const where = {
+      estado: f.estado,
+      ...(f.texto
+        ? { OR: [{ dni: { contains: f.texto } }, { nombres: { contains: f.texto } }, { apellidos: { contains: f.texto } }] }
+        : {}),
+    };
+    const filas = await bd.cliente.findMany({ where, orderBy: { id: 'asc' }, ...paginar(f) });
     const items = await Promise.all(filas.map(async (x) => this.dto(x, calcularSu(await comprasParaSu(bd, x.id)))));
-    return { items, total: items.length };
+    return { items, total: await bd.cliente.count({ where }) };
   }
 
   /** Deuda total a la fecha (6.3m): listados sin pagar con su mora, más el capital aún sin listar. */
@@ -212,6 +210,10 @@ export class ClientesService {
     for (let intento = 1; ; intento++) {
       try {
         return await this.bd.transaccionEnTienda(c.tiendaId, async (t) => {
+          // P2002 no dice qué índice chocó: el DNI se comprueba antes y lo que quede es el código de activación.
+          if (await t.bd.cliente.findFirst({ where: { dni: d.dni }, select: { id: true } })) {
+            throw new ErrorNegocio(409, 'DNI_DUPLICADO', 'Ya tienes un cliente con ese DNI.');
+          }
           const tienda = await t.tienda();
           const x = await t.bd.cliente.create({
             data: {
@@ -252,9 +254,8 @@ export class ClientesService {
           return { ...this.dto(x, new Dec(0)), codigoActivacion: x.codigo_activacion };
         });
       } catch (e) {
-        const r = restriccionUnica(e);
-        if (r?.includes('dni')) throw new ErrorNegocio(409, 'DNI_DUPLICADO', 'Ya tienes un cliente con ese DNI.');
-        if (r === null || intento >= 5) throw e; // Otro error, o el código de activación chocó demasiadas veces.
+        // Otro error, o el código o una inscripción simultánea chocaron demasiadas veces: al reintentar, el DNI repetido da 409.
+        if (restriccionUnica(e) === null || intento >= 5) throw e;
       }
     }
   }

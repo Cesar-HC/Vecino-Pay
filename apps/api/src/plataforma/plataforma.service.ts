@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Prisma, tienda, usuario } from '@prisma/client';
-import { partesLima, sumarDias } from '@vecinopay/finance';
+import { aDec, partesLima, sumarDias } from '@vecinopay/finance';
 import * as bcrypt from 'bcryptjs';
 import { detalleParaAdmin } from '../auditoria/detalle';
 import { COSTO_BCRYPT } from '../auth/auth.service';
@@ -8,7 +8,7 @@ import { BdService } from '../bd/bd.service';
 import { aFechaBd, aDecimalBd, dePartesBd } from '../bd/conversiones';
 import { restriccionUnica } from '../bd/errores-bd';
 import { ErrorNegocio, noExiste } from '../comun/error-negocio';
-import { aId, aTasa, Contexto } from '../comun/utilidades';
+import { aId, aTasa, Contexto, paginar } from '../comun/utilidades';
 import { RELOJ, Reloj } from '../reloj/reloj';
 import {
   CrearTiendaDto,
@@ -19,6 +19,10 @@ import {
   FiltroTiendasDto,
   FiltroUsuariosDto,
 } from './plataforma.dto';
+
+function exigirCok(cok: string) {
+  if (!aDec(cok).gt(0)) throw new ErrorNegocio(400, 'COK', 'El COK de la tienda debe ser mayor que cero.');
+}
 
 const sinHora = (d: Date) => dePartesBd(d).fecha;
 const fechaHoraIso = (d: Date) => {
@@ -35,7 +39,8 @@ export class PlataformaService {
 
   private conflictoTienda(e: unknown): never {
     const r = restriccionUnica(e);
-    if (r?.includes('ruc')) throw new ErrorNegocio(409, 'RUC_DUPLICADO', 'Ya existe una tienda con ese RUC.');
+    if (r?.includes('tienda')) throw new ErrorNegocio(409, 'RUC_DUPLICADO', 'Ya existe una tienda con ese RUC.');
+    if (r?.includes('usuario')) throw new ErrorNegocio(409, 'USUARIO_DUPLICADO', 'Ya existe un usuario con ese nombre.');
     throw e;
   }
 
@@ -61,12 +66,13 @@ export class PlataformaService {
         ? { OR: [{ nombre_comercial: { contains: f.texto } }, { razon_social: { contains: f.texto } }, { ruc: { contains: f.texto } }] }
         : {}),
     };
-    const items = await this.bd.global().tienda.findMany({ where, include: { usuario: true }, orderBy: { id: 'asc' } });
-    return { items: items.map((t) => this.tiendaDto(t)), total: items.length };
+    const items = await this.bd.global().tienda.findMany({ where, include: { usuario: true }, orderBy: { id: 'asc' }, ...paginar(f) });
+    return { items: items.map((t) => this.tiendaDto(t)), total: await this.bd.global().tienda.count({ where }) };
   }
 
   /** Crea o reutiliza al dueño (T24) y crea la tienda, todo en una transacción. */
   async crearTienda(c: Contexto, dto: CrearTiendaDto) {
+    exigirCok(dto.cokTea);
     const hash = dto.claveTemporal ? await bcrypt.hash(dto.claveTemporal, COSTO_BCRYPT) : null;
     try {
       return await this.bd.transaccionGlobal(async (tx) => {
@@ -121,6 +127,7 @@ export class PlataformaService {
   }
 
   async editarTienda(c: Contexto, id: bigint, dto: EditarTiendaDto) {
+    if (dto.cokTea !== undefined) exigirCok(dto.cokTea);
     try {
       return await this.bd.transaccionGlobal(async (tx) => {
         if (!(await tx.tienda.findUnique({ where: { id } }))) throw noExiste('La tienda');
@@ -158,9 +165,20 @@ export class PlataformaService {
       const actual = await tx.tienda.findUnique({ where: { id } });
       if (!actual) throw noExiste('La tienda');
       const t = await tx.tienda.update({ where: { id }, data: { estado }, include: { usuario: true } });
+      // Nunca reactiva al dueño: pudo estar dado de baja por otro motivo. Eso se hace aparte en A04.
+      let dueno = t.usuario;
       const activas = await tx.tienda.count({ where: { duenio_id: t.duenio_id, estado: 'ACTIVO' } });
-      const estadoDueno = activas > 0 ? 'ACTIVO' : 'INACTIVO';
-      const dueno = await tx.usuario.update({ where: { id: t.duenio_id }, data: { estado: estadoDueno } });
+      if (estado === 'INACTIVO' && activas === 0 && dueno.estado === 'ACTIVO') {
+        dueno = await tx.usuario.update({ where: { id: t.duenio_id }, data: { estado: 'INACTIVO' } });
+        await this.bd.auditarEn(tx, {
+          usuarioId: c.usuarioId,
+          tiendaId: id,
+          accion: 'BAJA',
+          tabla: 'usuario',
+          registroId: dueno.id,
+          detalle: `Baja del usuario ${dueno.username}: se quedó sin tiendas activas.`,
+        });
+      }
       await this.bd.auditarEn(tx, {
         usuarioId: c.usuarioId,
         tiendaId: id,
@@ -198,16 +216,20 @@ export class PlataformaService {
 
   async listarUsuarios(f: FiltroUsuariosDto) {
     const tiendaId = f.tiendaId ? BigInt(f.tiendaId) : undefined;
+    const where: Prisma.usuarioWhereInput = {
+      perfil: f.perfil,
+      AND: [
+        ...(f.texto ? [{ OR: [{ username: { contains: f.texto } }, { nombres: { contains: f.texto } }] }] : []),
+        ...(tiendaId ? [{ OR: [{ tienda: { some: { id: tiendaId } } }, { cliente: { some: { tienda_id: tiendaId } } }] }] : []),
+      ],
+    };
     const usuarios = await this.bd.global().usuario.findMany({
-      where: {
-        perfil: f.perfil,
-        ...(f.texto ? { OR: [{ username: { contains: f.texto } }, { nombres: { contains: f.texto } }] } : {}),
-        ...(tiendaId ? { OR: [{ tienda: { some: { id: tiendaId } } }, { cliente: { some: { tienda_id: tiendaId } } }] } : {}),
-      },
+      where,
       orderBy: { id: 'asc' },
+      ...paginar(f),
     });
     const items = await Promise.all(usuarios.map((u) => this.usuarioDto(u)));
-    return { items, total: items.length };
+    return { items, total: await this.bd.global().usuario.count({ where }) };
   }
 
   /** La cuenta CLIENTE solo nace en C02, para confirmar que quien crea la clave es la persona inscrita (6.1.1). */
@@ -233,7 +255,7 @@ export class PlataformaService {
       });
       return this.usuarioDto(u);
     } catch (e) {
-      if (restriccionUnica(e)?.includes('username')) {
+      if (restriccionUnica(e)?.includes('usuario')) {
         throw new ErrorNegocio(409, 'USUARIO_DUPLICADO', 'Ya existe un usuario con ese nombre.');
       }
       throw e;
@@ -303,9 +325,7 @@ export class PlataformaService {
   }
 
   async auditoria(f: FiltroAuditoriaDto) {
-    const pagina = Math.max(Number(f.pagina ?? 1), 1);
-    const tamano = Math.min(Math.max(Number(f.tamano ?? 50), 1), 200);
-    const where: Prisma.auditoriaWhereInput = {
+        const where: Prisma.auditoriaWhereInput = {
       accion: f.accion,
       tienda_id: f.tiendaId ? BigInt(f.tiendaId) : undefined,
       usuario_id: f.usuarioId ? BigInt(f.usuarioId) : undefined,
@@ -320,8 +340,7 @@ export class PlataformaService {
         where,
         include: { usuario: true, tienda: true },
         orderBy: [{ fecha_hora: 'desc' }, { id: 'desc' }],
-        skip: (pagina - 1) * tamano,
-        take: tamano,
+        ...paginar(f),
       }),
       bd.auditoria.count({ where }),
     ]);

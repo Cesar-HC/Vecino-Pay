@@ -5,7 +5,8 @@ import * as bcrypt from 'bcryptjs';
 import { BdService } from '../bd/bd.service';
 import { aId, Contexto, Perfil } from '../comun/utilidades';
 import { ErrorNegocio, noExiste } from '../comun/error-negocio';
-import { exigirDniSinCuenta } from './activacion.politica';
+import { conflictoDeDni, ERROR_DNI_ACTIVADO } from './activacion.politica';
+import { restriccionUnica } from '../bd/errores-bd';
 import { ActivarDto, CambiarContrasenaDto, LoginDto } from './auth.dto';
 import { CargaToken } from './guardias';
 
@@ -55,7 +56,7 @@ export class AuthService {
   }
 
   /** Null si no puede entrar: tienda o cliente inactivos, o sin tienda. */
-  private async datosDeSesion(u: usuario) {
+  private async datosDeSesion(u: usuario, tiendaActual?: bigint) {
     const bd = this.bd.global();
     const usuarioPublico = { id: aId(u.id), username: u.username, nombres: u.nombres, perfil: u.perfil };
     if (u.perfil === 'ADMIN_SISTEMA') {
@@ -65,7 +66,15 @@ export class AuthService {
       const tiendas = await bd.tienda.findMany({ where: { duenio_id: u.id, estado: 'ACTIVO' }, orderBy: { id: 'asc' } });
       if (tiendas.length === 0) return null;
       const lista = tiendas.map((t) => ({ id: aId(t.id), nombreComercial: t.nombre_comercial }));
-      return { tiendaId: tiendas[0].id, publico: { usuario: usuarioPublico, tienda: lista[0], tiendas: lista } };
+      const actual = tiendas.find((t) => t.id === tiendaActual) ?? tiendas[0];
+      return {
+        tiendaId: actual.id,
+        publico: {
+          usuario: usuarioPublico,
+          tienda: { id: aId(actual.id), nombreComercial: actual.nombre_comercial },
+          tiendas: lista,
+        },
+      };
     }
     const cliente = await bd.cliente.findFirst({
       where: { usuario_id: u.id, estado: 'ACTIVO', tienda: { estado: 'ACTIVO' } },
@@ -92,7 +101,7 @@ export class AuthService {
 
   async yo(c: Contexto) {
     const usuario = await this.bd.global().usuario.findUniqueOrThrow({ where: { id: c.usuarioId } });
-    const sesion = await this.datosDeSesion(usuario);
+    const sesion = await this.datosDeSesion(usuario, 'tiendaId' in c ? c.tiendaId : undefined);
     if (!sesion) throw new ErrorNegocio(401, 'SIN_SESION', 'Tu sesión ya no es válida.');
     return sesion.publico;
   }
@@ -127,7 +136,19 @@ export class AuthService {
         return new ErrorNegocio(400, 'ACTIVACION_INVALIDA', 'El DNI o el código de activación no son válidos.');
       }
       await this.bd.bloquearClienteEn(tx, cliente.id);
-      await exigirDniSinCuenta(tx, dto.dni);
+      const conflicto = await conflictoDeDni(tx, dto.dni);
+      if (conflicto) {
+        // Se confirma solo el rechazo: el código no se consume.
+        await this.bd.auditarEn(tx, {
+          usuarioId: null,
+          tiendaId: cliente.tienda_id,
+          accion: 'RECHAZO',
+          tabla: 'cliente',
+          registroId: cliente.id,
+          detalle: 'Activación rechazada: el DNI ya tiene una cuenta en otra tienda.',
+        });
+        return conflicto;
+      }
       const nuevo = await tx.usuario.create({
         data: {
           perfil: 'CLIENTE',
@@ -150,6 +171,10 @@ export class AuthService {
         detalle: 'Cliente activó su cuenta y aceptó el tratamiento de datos personales.',
       });
       return { username: nuevo.username };
+    }).catch((e) => {
+      // Dos activaciones simultáneas del mismo DNI en tiendas distintas: choca UQ_usuario_username.
+      if (restriccionUnica(e)?.includes('usuario')) throw ERROR_DNI_ACTIVADO();
+      throw e;
     });
     if (resultado instanceof ErrorNegocio) throw resultado;
     return resultado;

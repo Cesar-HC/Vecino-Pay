@@ -72,20 +72,29 @@ export class CorteService implements OnApplicationBootstrap {
 
     const vencen = await bd.listado_pago.findMany({
       where: { estado: 'EMITIDO', fecha_pago: { lte: aFechaBd(hoy) } },
-      select: { id: true, tienda_id: true, numero: true },
+      select: { id: true, tienda_id: true, cliente_id: true, numero: true },
     });
     for (const l of vencen) {
-      await this.bd.transaccionEnTienda(l.tienda_id, async (t) => {
-        await t.bd.listado_pago.updateMany({ where: { id: l.id, estado: 'EMITIDO' }, data: { estado: 'VENCIDO' } });
-        await t.auditar({
-          usuarioId: null,
-          accion: 'CAMBIO',
-          tabla: 'listado_pago',
-          registroId: l.id,
-          detalle: `Listado ${l.numero} vencido.`,
+      try {
+        const cambio = await this.bd.transaccionEnTienda(l.tienda_id, async (t) => {
+          // Si otro corte o un pago ya lo cambió, no hay nada que hacer ni que auditar.
+          const r = await t.bd.listado_pago.updateMany({ where: { id: l.id, estado: 'EMITIDO' }, data: { estado: 'VENCIDO' } });
+          if (r.count === 1) {
+            await t.auditar({
+              usuarioId: null,
+              accion: 'CAMBIO',
+              tabla: 'listado_pago',
+              registroId: l.id,
+              detalle: `Listado ${l.numero} vencido.`,
+            });
+          }
+          return r.count;
         });
-      });
-      resultado.vencidos++;
+        resultado.vencidos += cambio;
+      } catch (e) {
+        this.log.error(e);
+        resultado.errores.push({ clienteId: aId(l.cliente_id) as string, mensaje: e instanceof Error ? e.message : 'Error' });
+      }
     }
 
     const clientes = await bd.cliente.findMany({

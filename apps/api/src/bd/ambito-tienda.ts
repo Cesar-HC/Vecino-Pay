@@ -33,8 +33,33 @@ type Operables = 'producto' | 'cliente' | 'compra' | 'listado_pago' | 'compra_de
 /** Lo único que un servicio de operación puede tocar: modelos de su tienda. */
 export type Ambito = Pick<ClienteBd, Operables>;
 
-type Args = { where?: object; data?: object | object[] };
+type Args = { where?: { AND?: unknown }; data?: object | object[]; include?: object; select?: object };
 type Delegado = Record<string, (args?: Args) => Promise<unknown>>;
+
+const OPERACIONES_ANIDADAS = ['connect', 'connectOrCreate', 'create', 'createMany', 'update', 'updateMany', 'upsert', 'delete', 'deleteMany', 'set', 'disconnect'];
+
+/** Nada de cambiar de tienda ni de tocar otras tablas a través de una relación. */
+function exigirDatosPlanos(modelo: string, data: object | object[] | undefined, permitirTienda: boolean) {
+  for (const fila of [data ?? []].flat() as Record<string, unknown>[]) {
+    if (!permitirTienda && 'tienda_id' in fila) throw new FueraDeAmbito(`No se puede cambiar la tienda de ${modelo}.`);
+    for (const valor of Object.values(fila)) {
+      if (valor && typeof valor === 'object' && OPERACIONES_ANIDADAS.some((op) => op in valor)) {
+        throw new FueraDeAmbito(`${modelo} no admite escrituras anidadas.`);
+      }
+    }
+  }
+}
+
+/** Un include o select no puede llegar a los modelos globales con datos sensibles. */
+function exigirLecturaPermitida(modelo: string, proyeccion: unknown) {
+  if (!proyeccion || typeof proyeccion !== 'object') return;
+  for (const [clave, valor] of Object.entries(proyeccion)) {
+    if ((clave === 'usuario' || clave === 'auditoria') && valor) {
+      throw new FueraDeAmbito(`${modelo} no puede incluir ${clave}.`);
+    }
+    exigirLecturaPermitida(modelo, valor);
+  }
+}
 
 /**
  * Envuelve al cliente Prisma (o a una transacción) para que toda consulta quede dentro de la tienda.
@@ -74,6 +99,9 @@ export function crearAmbito(base: ClienteBd, tiendaId: bigint): Ambito {
             };
           }
           return async (args: Args) => {
+            exigirDatosPlanos(modelo, args.data, true);
+            exigirLecturaPermitida(modelo, args.include);
+            exigirLecturaPermitida(modelo, args.select);
             await comprobarPadres([args.data as Record<string, unknown>]);
             return original.call(obj, { ...args, data: fijar(args.data as object) });
           };
@@ -82,12 +110,20 @@ export function crearAmbito(base: ClienteBd, tiendaId: bigint): Ambito {
           return async (args: Args) => {
             const filas = (Array.isArray(args.data) ? args.data : [args.data]) as Record<string, unknown>[];
             if (filas.length === 0) return { count: 0 };
+            exigirDatosPlanos(modelo, filas, true);
             await comprobarPadres(filas);
             return original.call(obj, { ...args, data: filas.map(fijar) });
           };
         }
         if (CON_WHERE.includes(op)) {
-          return (args: Args = {}) => original.call(obj, { ...args, where: { ...args.where, ...filtro } });
+          return (args: Args = {}) => {
+            exigirDatosPlanos(modelo, args.data, false);
+            exigirLecturaPermitida(modelo, args.include);
+            exigirLecturaPermitida(modelo, args.select);
+            // Con AND y no por claves: otro filtro sobre la misma relación no se pisa con el de la tienda.
+            const previos = args.where?.AND === undefined ? [] : [args.where.AND].flat();
+            return original.call(obj, { ...args, where: { ...args.where, AND: [...previos, filtro] } });
+          };
         }
         return () => {
           throw new FueraDeAmbito(`${op} no está permitido en ${modelo}.`);

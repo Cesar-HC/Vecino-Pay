@@ -27,7 +27,7 @@ import { aDecBd, aFechaBd, aInstanteBd, deFechaBd, dePartesBd } from '../bd/conv
 import { comprasParaSu } from '../clientes/clientes';
 import { calcularSu } from '../clientes/saldos';
 import { ErrorNegocio, noExiste } from '../comun/error-negocio';
-import { aId, aPorcentaje, aSoles, aTasa, ContextoDueno, Ctx, IsIdTexto, ParseIdPipe, Roles } from '../comun/utilidades';
+import { aId, aPorcentaje, aSoles, aTasa, conSimbolo, ContextoDueno, Ctx, IsIdTexto, PaginaDto, paginar, ParseIdPipe, Roles } from '../comun/utilidades';
 
 export class ItemCompraDto {
   @IsIdTexto() productoId: string;
@@ -42,7 +42,7 @@ export class CompraDto {
   @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => ItemCompraDto) items: ItemCompraDto[];
 }
 
-export class FiltroComprasDto {
+export class FiltroComprasDto extends PaginaDto {
   @IsOptional() @IsIdTexto() clienteId?: string;
   @IsOptional() @IsIn(['PENDIENTE', 'PAGADA', 'ANULADA']) estado?: string;
   @IsOptional() @IsIn(['FIN_MES', 'CUOTAS']) modalidad?: string;
@@ -91,6 +91,7 @@ async function calcularCompra(
   });
   const montoLista = detalle.reduce<Dec>((s, d) => s.plus(d.subtotal), new Dec(0));
   const montoContado = detalle.reduce<Dec>((s, d) => s.plus(d.subtotalContado), new Dec(0));
+  if (!montoContado.gt(0)) throw new ErrorNegocio(400, 'CANTIDAD', 'La cantidad es demasiado pequeña: el monto se redondea a cero.');
 
   const fechaOperativa = fechaOperativaLocal(p.fecha, p.hora);
   const ciclo = asignarCiclo({ fechaOperativa, diaCorte: cliente.dia_corte, diaPago: cliente.dia_pago });
@@ -234,7 +235,7 @@ export class ComprasService {
           usuarioId: c.usuarioId,
           accion: 'RECHAZO',
           tabla: 'compra',
-          detalle: `Compra de ${aSoles(r.montoLista)} de ${r.cliente.nombres} ${r.cliente.apellidos} rechazada. ${r.limite.mensaje}`,
+          detalle: `Compra de ${conSimbolo(r.cliente.moneda, r.montoLista)} de ${r.cliente.nombres} ${r.cliente.apellidos} rechazada. ${r.limite.mensaje}`,
         });
         return new ErrorNegocio(422, 'LIMITE_EXCEDIDO', r.limite.mensaje, { disponible: aSoles(r.limite.disponible) });
       }
@@ -245,7 +246,7 @@ export class ComprasService {
         accion: 'ALTA',
         tabla: 'compra',
         registroId: creada.id,
-        detalle: `Compra ${creada.ticket} de ${r.cliente.nombres} ${r.cliente.apellidos}, ${creada.modalidad}, ${aSoles(r.montoLista)}`,
+        detalle: `Compra ${creada.ticket} de ${r.cliente.nombres} ${r.cliente.apellidos}, ${creada.modalidad}, ${conSimbolo(r.cliente.moneda, r.montoLista)}`,
       });
       return compraDto(creada);
     });
@@ -315,15 +316,14 @@ export class ComprasService {
   }
 
   async listar(c: ContextoDueno, f: FiltroComprasDto) {
-    const items = await this.bd.enTienda(c.tiendaId).compra.findMany({
-      where: {
-        cliente_id: f.clienteId ? BigInt(f.clienteId) : undefined,
-        estado: f.estado,
-        modalidad: f.modalidad,
-      },
-      orderBy: { fecha_hora: 'asc' },
-    });
-    return { items: items.map(compraDto), total: items.length };
+    const bd = this.bd.enTienda(c.tiendaId);
+    const where = {
+      cliente_id: f.clienteId ? BigInt(f.clienteId) : undefined,
+      estado: f.estado,
+      modalidad: f.modalidad,
+    };
+    const items = await bd.compra.findMany({ where, orderBy: { fecha_hora: 'asc' }, ...paginar(f) });
+    return { items: items.map(compraDto), total: await bd.compra.count({ where }) };
   }
 
   async obtener(c: ContextoDueno, id: bigint) {

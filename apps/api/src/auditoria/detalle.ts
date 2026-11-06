@@ -10,5 +10,5 @@ export function detalleParaAdmin(detalle: string | null): string | null {
   if (detalle === null) return null;
   const corte = detalle.indexOf(SEPARADOR_DATOS);
   const texto = corte >= 0 ? detalle.slice(0, corte) : detalle;
-  return texto.replace(/(S\/|US\$)\s*\d[\d,.]*/g, '$1 ***');
+  return texto.replace(/(S\/|US\$)\s*\d[\d,.]*/g, '$1 ***').replace(/\b\d[\d,]*\.\d+\b/g, '***');
 }

@@ -28,13 +28,11 @@ export class Prueba {
   /** Solo para comprobar lo que quedó en la BD. */
   readonly bd = new PrismaClient();
 
-  async iniciar() {
-    const modulo = await Test.createTestingModule({ imports: [AppModule, DiscoveryModule] })
-      .overrideProvider(RELOJ)
-      .useValue(this.reloj)
-      .overrideGuard(GuardIntentos)
-      .useValue({ canActivate: () => true })
-      .compile();
+  /** conIntentos: deja activo el límite de intentos; solo la prueba que lo evalúa lo necesita. */
+  async iniciar(conIntentos = false) {
+    let armado = Test.createTestingModule({ imports: [AppModule, DiscoveryModule] }).overrideProvider(RELOJ).useValue(this.reloj);
+    if (!conIntentos) armado = armado.overrideGuard(GuardIntentos).useValue({ canActivate: () => true });
+    const modulo = await armado.compile();
     this.app = modulo.createNestApplication();
     configurarApp(this.app);
     await this.app.init();

@@ -1,4 +1,4 @@
-import { INestApplication, Module, ValidationPipe } from '@nestjs/common';
+import { BadRequestException, INestApplication, Module, ValidationError, ValidationPipe } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -24,7 +24,10 @@ import { SaludController } from './salud.controller';
   imports: [
     BdModule,
     ScheduleModule.forRoot(),
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),
+    ThrottlerModule.forRoot([
+      { name: 'usuario', ttl: 60000, limit: 10 },
+      { name: 'ip', ttl: 60000, limit: 60, getTracker: (req) => String(req.ip) },
+    ]),
     JwtModule.registerAsync({
       global: true,
       useFactory: () => ({
@@ -63,8 +66,26 @@ import { SaludController } from './salud.controller';
 })
 export class AppModule {}
 
+/** Los mensajes propios ya están en español; los de la librería se reemplazan (Tabla 11). */
+function mensajesEnEspanol(errores: ValidationError[]): string[] {
+  return errores.flatMap((e) => {
+    if (e.children?.length) return mensajesEnEspanol(e.children);
+    return Object.entries(e.constraints ?? {}).map(([regla, mensaje]) => {
+      if (regla === 'whitelistValidation') return `El campo ${e.property} no está permitido.`;
+      return /\b(must|should)\b/.test(mensaje) ? `El campo ${e.property} no es válido.` : mensaje;
+    });
+  });
+}
+
 /** Lo que comparten el arranque real y las pruebas. */
 export function configurarApp(app: INestApplication) {
   app.setGlobalPrefix('api');
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      exceptionFactory: (errores) => new BadRequestException(mensajesEnEspanol(errores)),
+    }),
+  );
 }

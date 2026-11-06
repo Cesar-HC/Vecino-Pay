@@ -1,7 +1,11 @@
+import { ForbiddenException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { GuardRoles } from '../../src/auth/guardias';
+import { CLAVE_PUBLICO } from '../../src/comun/utilidades';
 import { detalleParaAdmin, armarDetalle } from '../../src/auditoria/detalle';
 import { crearAmbito, FueraDeAmbito, MODELOS_DIRECTOS, MODELOS_GLOBALES, MODELOS_HEREDADOS, ClienteBd } from '../../src/bd/ambito-tienda';
 import { aDecBd, aInstanteBd, dePartesBd } from '../../src/bd/conversiones';
+import { leerEnv } from '../../src/config/cargar-env';
 import { cargarConfiguracion, ConfiguracionInvalida } from '../../src/config/configuracion';
 import { RelojFijo } from '../../src/reloj/reloj';
 
@@ -31,6 +35,11 @@ describe('configuración', () => {
     });
     expect(p).toHaveLength(3);
   });
+  it('uid=sa y username=sa también se rechazan; el secreto conocido avisa en desarrollo', () => {
+    expect(problemas({ NODE_ENV: 'test', JWT_SECRET: 'a', DATABASE_URL: 'sqlserver://db;uid=sa;password=x' })).toHaveLength(1);
+    expect(problemas({ NODE_ENV: 'test', JWT_SECRET: 'a', DATABASE_URL: 'sqlserver://db;username=sa;password=x' })).toHaveLength(1);
+    expect(cargarConfiguracion({ NODE_ENV: 'development', JWT_SECRET: 'cambia-este-secreto', DATABASE_URL: URL_OK }).avisos).toHaveLength(1);
+  });
   it('user=sa se rechaza en todo entorno', () => {
     expect(problemas({ NODE_ENV: 'development', JWT_SECRET: 'a', DATABASE_URL: 'sqlserver://db;user=sa;password=x' })).toHaveLength(1);
   });
@@ -46,6 +55,17 @@ describe('configuración', () => {
   it('reloj fijo vacío activa la hora real; sin desplazamiento se rechaza', () => {
     expect(cargarConfiguracion({ NODE_ENV: 'test', JWT_SECRET: 'a', DATABASE_URL: URL_OK, RELOJ_FIJO: '' }).relojFijo).toBeNull();
     expect(problemas({ NODE_ENV: 'test', JWT_SECRET: 'a', DATABASE_URL: URL_OK, RELOJ_FIJO: '2026-09-22T12:00:00' })).toHaveLength(1);
+  });
+});
+
+describe('lectura de .env', () => {
+  it('conserva el # de las claves y quita comentarios y comillas', () => {
+    expect(leerEnv('A=Vecino#2026
+B="x y" # nota
+C=z # nota
+# D=1
+E=
+F=a;b=c#d')).toEqual({ A: 'Vecino#2026', B: 'x y', C: 'z', E: '', F: 'a;b=c#d' });
   });
 });
 
@@ -76,6 +96,29 @@ describe('detalle para el administrador', () => {
     expect(r).not.toContain('276.38');
     expect(r).not.toContain('999.00');
   });
+  it('enmascara también un importe sin símbolo', () => {
+    expect(detalleParaAdmin('Pago de 9.15 del listado EC-202609-00001')).toBe('Pago de *** del listado EC-202609-00001');
+  });
+});
+
+describe('guardia de roles', () => {
+  const contexto = (perfil: string) =>
+    ({
+      getHandler: () => undefined,
+      getClass: () => undefined,
+      switchToHttp: () => ({ getRequest: () => ({ contexto: { perfil } }) }),
+    }) as never;
+  const guardia = (publico: boolean, roles?: string[]) =>
+    new GuardRoles({ getAllAndOverride: (clave: string) => (clave === CLAVE_PUBLICO ? publico : roles) } as never);
+
+  it('una ruta sin @Publico ni @Roles responde 403', () => {
+    expect(() => guardia(false).canActivate(contexto('ADMIN_SISTEMA'))).toThrow(ForbiddenException);
+  });
+  it('un perfil que no está en @Roles responde 403; el que está, pasa', () => {
+    expect(() => guardia(false, ['DUENO']).canActivate(contexto('CLIENTE'))).toThrow(ForbiddenException);
+    expect(guardia(false, ['DUENO']).canActivate(contexto('DUENO'))).toBe(true);
+    expect(guardia(true).canActivate(contexto('CLIENTE'))).toBe(true);
+  });
 });
 
 describe('ámbito de tienda', () => {
@@ -101,16 +144,29 @@ describe('ámbito de tienda', () => {
 
   it('agrega la tienda en modelos directos y por relación en heredados', async () => {
     await ambito.cliente.findMany({ where: { dni: '1' } });
-    expect(llamadas[0].args).toEqual({ where: { dni: '1', tienda_id: 7n } });
+    expect(llamadas[0].args).toEqual({ where: { dni: '1', AND: [{ tienda_id: 7n }] } });
     await ambito.cuota.findMany();
-    expect(llamadas[1].args).toEqual({ where: { compra: { tienda_id: 7n } } });
+    expect(llamadas[1].args).toEqual({ where: { AND: [{ compra: { tienda_id: 7n } }] } });
     await ambito.pago.count();
-    expect(llamadas[2].args).toEqual({ where: { listado_pago: { tienda_id: 7n } } });
+    expect(llamadas[2].args).toEqual({ where: { AND: [{ listado_pago: { tienda_id: 7n } }] } });
   });
 
-  it('un where con otra tienda no puede ganarle al ámbito', async () => {
+  it('un where con otra tienda se combina con AND: no le gana al ámbito', async () => {
     await ambito.cliente.findMany({ where: { tienda_id: 99n } });
-    expect(llamadas[0].args).toEqual({ where: { tienda_id: 7n } });
+    expect(llamadas[0].args).toEqual({ where: { tienda_id: 99n, AND: [{ tienda_id: 7n }] } });
+  });
+
+  it('otro filtro sobre la misma relación no se pisa con el de la tienda', async () => {
+    await ambito.pago.findMany({ where: { listado_pago: { cliente_id: 5n } } });
+    expect(llamadas[0].args).toEqual({ where: { listado_pago: { cliente_id: 5n }, AND: [{ listado_pago: { tienda_id: 7n } }] } });
+  });
+
+  it('no deja cambiar de tienda, escribir por una relación ni leer modelos globales', () => {
+    expect(() => ambito.producto.update({ where: { id: 1n }, data: { tienda_id: 2n } as never })).toThrow(FueraDeAmbito);
+    expect(() => ambito.producto.update({ where: { id: 1n }, data: { tienda: { connect: { id: 2n } } } })).toThrow(FueraDeAmbito);
+    expect(() => ambito.cliente.findMany({ include: { usuario: true } })).toThrow(FueraDeAmbito);
+    expect(() => ambito.compra.findMany({ include: { tienda: { include: { usuario: true } } } })).toThrow(FueraDeAmbito);
+    expect(() => ambito.compra.findMany({ select: { cliente: { select: { usuario: true } } } })).toThrow(FueraDeAmbito);
   });
 
   it('fija la tienda al crear en modelos directos', async () => {

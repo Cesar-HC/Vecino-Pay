@@ -1,12 +1,9 @@
 import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Throttle } from '@nestjs/throttler';
 import { Contexto, Ctx, Publico, Roles } from '../comun/utilidades';
 import { ActivarDto, CambiarContrasenaDto, CambiarTiendaDto, LoginDto } from './auth.dto';
 import { AuthService } from './auth.service';
 import { GuardIntentos } from './guardias';
-
-const INTENTOS = { default: { limit: 10, ttl: 60000 } };
 
 @ApiTags('auth')
 @ApiBearerAuth()
@@ -16,7 +13,6 @@ export class AuthController {
 
   @Publico()
   @UseGuards(GuardIntentos)
-  @Throttle(INTENTOS)
   @HttpCode(200)
   @Post('login')
   login(@Body() dto: LoginDto) {
@@ -25,7 +21,6 @@ export class AuthController {
 
   @Publico()
   @UseGuards(GuardIntentos)
-  @Throttle(INTENTOS)
   @Post('activar')
   activar(@Body() dto: ActivarDto) {
     return this.auth.activar(dto);
