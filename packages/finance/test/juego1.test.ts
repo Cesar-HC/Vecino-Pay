@@ -13,6 +13,8 @@ import {
   valorHoy,
 } from '../src';
 import { f2, fN, VARIANTES_TED } from './apoyo';
+import { ErrorFinanciero as ErrorFinancieroMora } from '../src/errores';
+import { itemMora } from '../src/listado';
 
 const COMPRAS = [
   { ref: 'T-000231', fecha: '2026-08-22', hora: '09:15:00', capital: '44.20' },
@@ -200,5 +202,17 @@ describe('Moneda en los mensajes de rechazo', () => {
   it('usa US$ con clientes en dólares', () => {
     const r = evaluarLimite({ monto: '10.00', limite: '5.00', su: '0', moneda: 'USD' });
     expect(r.mensaje).toContain('US$ 5.00');
+  });
+});
+
+describe('ítem de mora (6.3i, T31)', () => {
+  it('pago del 26/09 a las 17:30: orden 6, fecha 27/09, 1 día, 0.06', () => {
+    const i = itemMora({ ultimoOrden: 5, fechaOperativaPago: '2026-09-27', diasMora: 1, mora: '0.06' });
+    expect([i.orden, i.tipo, i.fecha, i.dias]).toEqual([6, 'MORA', '2026-09-27', 1]);
+    expect([i.capital.toFixed(2), i.interes.toFixed(2), i.mora.toFixed(2), i.total.toFixed(2)]).toEqual(['0.00', '0.00', '0.06', '0.06']);
+  });
+
+  it('sin días de mora no hay ítem', () => {
+    expect(() => itemMora({ ultimoOrden: 5, fechaOperativaPago: '2026-09-26', diasMora: 0, mora: '0.00' })).toThrow(ErrorFinancieroMora);
   });
 });

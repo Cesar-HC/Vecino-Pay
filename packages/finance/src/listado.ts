@@ -77,3 +77,41 @@ export function listadoDePago(a: {
   const totalInteres = items.reduce((s, i) => s.plus(i.interes), new Dec(0));
   return { items, totalCapital, totalInteres, total: totalCapital.plus(totalInteres) };
 }
+
+export interface ItemMoraListado {
+  orden: number;
+  tipo: 'MORA';
+  fecha: string;
+  dias: number;
+  capital: Dec;
+  interes: Dec;
+  mora: Dec;
+  total: Dec;
+}
+
+/**
+ * Ítem de mora (6.3i, T31): se agrega al final del listado cuando el cliente paga tarde.
+ * Capital e interés en cero; el total es la mora. El corte no la conoce (Fig. 33): nace con el pago.
+ */
+export function itemMora(a: {
+  ultimoOrden: number;
+  fechaOperativaPago: string;
+  diasMora: number;
+  mora: Entrada;
+}): ItemMoraListado {
+  validarFecha(a.fechaOperativaPago);
+  if (a.diasMora <= 0) {
+    throw new ErrorFinanciero('ENTRADA_INVALIDA', 'Solo hay ítem de mora si el pago es posterior a la fecha de pago.');
+  }
+  const mora = red(a.mora);
+  return {
+    orden: a.ultimoOrden + 1,
+    tipo: 'MORA',
+    fecha: a.fechaOperativaPago,
+    dias: a.diasMora,
+    capital: new Dec(0),
+    interes: new Dec(0),
+    mora,
+    total: mora,
+  };
+}
