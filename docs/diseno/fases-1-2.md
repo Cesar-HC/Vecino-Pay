@@ -40,7 +40,7 @@ Los id son `IDENTITY` y se resuelven por clave natural (ticket, código, DNI). R
 
 ## 3. Esquema (Tablas 23 a 33)
 
-Columnas, tipos y orden exactos de la sección 8. PK `id BIGINT IDENTITY` en todas. La columna "Origen" separa lo que dice el informe de lo que agrega este diseño. "Extra" no agrega columnas ni contradice el informe.
+Columnas, tipos y orden exactos de la sección 8, salvo las de 3.2.1. PK `id BIGINT IDENTITY` en todas. La columna "Origen" separa lo que dice el informe de lo que agrega este diseño. "Extra" no agrega columnas ni contradice el informe.
 
 ### 3.1 Tablas maestras
 
@@ -106,6 +106,16 @@ Columnas, tipos y orden exactos de la sección 8. PK `id BIGINT IDENTITY` en tod
 | | `fecha_hora DATETIME2 NOT NULL DEFAULT CONVERT(DATETIME2, SYSDATETIMEOFFSET() AT TIME ZONE 'SA Pacific Standard Time')` | T33 + hecho 10 |
 | | Trigger `TR_auditoria_solo_insercion` | T33 |
 
+### 3.2.1 Columnas agregadas por decisión de Adrián (2026-11-06)
+
+Se apartan de las Tablas 24 y 32, y el Word debe actualizarse. El informe no define sus tipos.
+
+| Tabla | Columna | Regla |
+|---|---|---|
+| tienda | `giro VARCHAR(40) NOT NULL` | Dato de A03; alimenta el gráfico por giro de A02 |
+| tienda | `telefono VARCHAR(15) NULL` | Dato de A03; mismo tamaño que `cliente.celular` |
+| pago | `numero_operacion VARCHAR(30) NULL` | Dato de D07 y C07; opcional porque el efectivo no lo tiene |
+
 ### 3.3 Triggers
 
 | Trigger | Evento | Regla |
@@ -143,7 +153,7 @@ La sesión principal genera estos valores y los hash con Node. No se copian de e
 
 Hash bcrypt de costo 10. Las contraseñas se documentan en el README. Los `$` de un hash no molestan a `sqlcmd`, que solo sustituye `$(var)`.
 
-**Tienda:** RUC `10412587369`, nombre comercial `Minimarket Doña Rosa`, razón social `Rosa Mamani` (ficticio), dirección ficticia, `cok_tea` 0.200000000, ACTIVO.
+**Tienda:** RUC `10412587369`, nombre comercial `Minimarket Doña Rosa`, razón social `Rosa Mamani` (ficticio), giro `Minimarket` (ficticio), dirección y teléfono ficticios, `cok_tea` 0.200000000, ACTIVO.
 
 | Campo | Luis Quispe | María Huamán |
 |---|---|---|
@@ -494,6 +504,7 @@ Se expone como `npm run db:verificar`.
 | Auditoría: ALTA con `usuario_id` NULL / RECHAZO con `registro_id` NULL | 1 / 1 |
 | Luis: `codigo_activacion` NULL / María: `usuario_id` NULL y código presente | 1 / 1 |
 | `nombre_comercial` contiene `NCHAR(241)` (ñ guardada bien) | 1 |
+| Giro `Minimarket`, teléfono presente / columna `pago.numero_operacion` (longitud) | 1, 1 / 30 |
 
 **Pruebas negativas (7).** Cada una en su `TRY/CATCH` con transacción propia y `ROLLBACK`. Falla si la operación tiene éxito o si la rechaza una causa distinta de la indicada.
 - `UPDATE auditoria` y `DELETE auditoria` (error 50001).
@@ -510,9 +521,9 @@ Se expone como `npm run db:verificar`.
 1. **Hora de Prisma.** `fecha_hora` guarda hora local de Lima, pero Prisma devolverá un `Date` leído como UTC. Pasarlo a `fechaOperativa(instante)` restaría 5 horas y movería la fecha operativa. Al leer de la BD se usa `fechaOperativaLocal` con las partes UTC del valor.
 2. **Las fechas de la demo ya pasaron.** Hoy es 05/11/2026 y las semillas están al 22/09/2026. Un corte que recupere días atrasados generaría listados y vencimientos que rompen D01. La API debe tomar la hora de un reloj inyectable por variable de entorno, nunca desde la pantalla, y el corte solo debe procesar "hoy" sin ponerse al día.
 3. **Prisma y triggers.** Si `create` usa `OUTPUT` sin `INTO`, SQL Server lo rechaza en tablas con triggers de inserción (`compra_detalle`, `listado_item`). Hay que probarlo al inicio de la fase 3. Si falla, usar `createMany` o SQL parametrizado, sin quitar los triggers.
-4. **`pago.fecha` es `DATE` (T32), pero T6 pide fecha y hora.** El esquema sigue T32. Qué fecha se guarda y dónde queda la hora está pendiente de Adrián (`docs/escalaciones.md`, hora real del pago). La propuesta es guardar la fecha calendario real, con `dias_mora` y la hora en auditoría. No cambia cifras.
+4. **`pago.fecha` es `DATE` (T32), pero T6 pide fecha y hora.** Adrián decidió guardar la fecha calendario real, con `dias_mora` y la hora en auditoría. No cambia cifras.
 5. **`tienda_id`.** El prompt y la regla del proyecto lo piden en toda tabla de operación, pero T28, T29, T31 y T32 no lo tienen. Gana el informe (hecho 7). La API filtra esas tablas con `JOIN`.
-6. **SU.** La semilla y `verificar_semillas.sql` no fijan la regla: solo comprueban el estado al 22/09.
+6. **SU.** Adrián decidió: en cuotas, `monto_lista` hasta pagar la cuota 1 y luego `saldo_final` de la última cuota pagada. La fase 3 implementa la regla; el motor sigue recibiendo SU como dato.
 7. **Doble cobro.** La Tabla 34 declara 0:N entre compra o cuota y listado_item, así que el esquema no lo impide: el corte debe excluir lo ya listado.
 8. **Lo que controla la API (ronda 1 del revisor):** no crear cuotas en compras `FIN_MES` ni cambiar la tienda de un producto ya vendido.
 9. **Antes de exponer la API:** usuario de BD distinto de `sa` para que `TRUNCATE` de auditoría no sea posible, publicar SQL Server solo en `127.0.0.1` y rechazar el `JWT_SECRET` por defecto.
@@ -525,19 +536,19 @@ Este diseño no se ejecutó. Hay que confirmar en el primer arranque: `AT TIME Z
 
 ### 9.3 Escalamientos
 
-Ninguno bloquea las fases 1 y 2. Conseguir la imagen del Anexo 4 (Figuras 48 y 49) podría resolver los puntos 1 y 2 sin más decisiones, porque ahí está el script original.
+Ninguno bloqueó las fases 1 y 2. Adrián resolvió el 2026-11-06 los puntos 1 (A), 2 (B) y 3 (B), además de la hora real del pago (A). El estado vigente de cada tema está en `docs/escalaciones.md`; lo de abajo queda como registro de las opciones.
 
-**[ESCALAR] 1. Plazo y capitalización de la mora.** T6, 6.1.1 y Fig. 23 piden `pM` y `cM`; T26 no tiene columnas.
+**[RESUELTO: A] 1. Plazo y capitalización de la mora.** T6, 6.1.1 y Fig. 23 piden `pM` y `cM`; T26 no tiene columnas.
 - **A:** sin columnas nuevas. D03 los pide, calcula `ted_mora` y los deja en `auditoria.detalle`. No cambia el Word, pero D03 y C08 no pueden volver a mostrarlos.
 - **B:** agregar dos columnas a `cliente`. Obliga a cambiar T26 y el diagrama de la Fig. 43.
 - **Recomendación:** A. **Bloquea:** D03 en las fases 3 y 4.
 
-**[ESCALAR] 2. Pantallas sin columna.** `tienda.giro` y teléfono (A02, A03), `pago.numero_operacion` (D07, C07), aceptación de datos (D03, C02), último acceso (A04), número de cuenta (C04).
+**[RESUELTO: B] 2. Pantallas sin columna.** `tienda.giro` y teléfono (A02, A03), `pago.numero_operacion` (D07, C07), aceptación de datos (D03, C02), último acceso (A04), número de cuenta (C04).
 - **A:** sin columnas. Aceptación en `auditoria.detalle`; último acceso desde `LOGIN`; número de cuenta derivado de `cliente.id`; `numero_operacion` solo en auditoría. `giro` y teléfono no se guardan, y el gráfico por giro de A02 no se puede construir.
 - **B:** agregar `tienda.giro`, `tienda.telefono` y `pago.numero_operacion`. Obliga a cambiar T24, T32 y Fig. 43.
 - **Recomendación:** B solo para esas tres columnas y A para lo demás, porque A02 es entregable y sin `giro` no se puede reproducir. **Bloquea:** A02, A03, D07 y C07.
 
-**[ESCALAR] 3. Capital pendiente de una compra en cuotas.** 6.3m usa 257.80 (P) al 22/09, antes de la fecha de pago, y la leyenda habla de "saldos de cuotas". No se define el valor posterior.
+**[RESUELTO: B] 3. Capital pendiente de una compra en cuotas.** 6.3m usa 257.80 (P) al 22/09, antes de la fecha de pago, y la leyenda habla de "saldos de cuotas". No se define el valor posterior.
 - **A:** SU = P hasta la fecha de pago del ciclo y luego P', con los saldos del cronograma. El SU de María sube 3.27 el 26/09 sin que ella haga nada, y CPC y disponible cambian.
 - **B:** SU = P hasta pagar la cuota 1 y luego `saldo_final` de la última cuota pagada. No hay saltos sin un hecho que los cause.
 - **Recomendación:** B. **Bloquea:** el cálculo de SU en la fase 3, y con él D01, D03, D04, C03 y el rechazo por límite.

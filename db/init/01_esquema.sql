@@ -2,6 +2,8 @@
 -- Idempotente: se ejecuta en cada "docker compose up". Nunca hace DROP; un cambio
 -- de esquema en desarrollo exige "docker compose down -v".
 -- Las restricciones marcadas "extra" no agregan columnas ni contradicen el informe.
+-- Las únicas columnas fuera de la sección 8 son tienda.giro, tienda.telefono y pago.numero_operacion,
+-- por decisión de Adrián (docs/escalaciones.md).
 USE VecinoPay;
 SET ANSI_NULLS ON;
 SET QUOTED_IDENTIFIER ON;
@@ -33,7 +35,9 @@ BEGIN
     ruc              CHAR(11)      NOT NULL,
     razon_social     VARCHAR(150)  NOT NULL,
     nombre_comercial VARCHAR(100)  NOT NULL,
+    giro             VARCHAR(40)   NOT NULL, -- decisión de Adrián: no está en la Tabla 24 (A02, A03)
     direccion        VARCHAR(200)  NULL,
+    telefono         VARCHAR(15)   NULL,     -- decisión de Adrián: no está en la Tabla 24 (A03)
     cok_tea          DECIMAL(12,9) NOT NULL,
     estado           VARCHAR(8)    NOT NULL CONSTRAINT DF_tienda_estado DEFAULT 'ACTIVO',
     CONSTRAINT FK_tienda_usuario FOREIGN KEY (duenio_id) REFERENCES dbo.usuario (id),
@@ -305,6 +309,7 @@ BEGIN
     fecha            DATE          NOT NULL,
     monto            DECIMAL(12,2) NOT NULL,
     medio_pago       VARCHAR(15)   NOT NULL,
+    numero_operacion VARCHAR(30)   NULL, -- decisión de Adrián: no está en la Tabla 32 (D07, C07)
     mora_aplicada    DECIMAL(12,2) NOT NULL,
     interes_aplicado DECIMAL(12,2) NOT NULL,
     capital_aplicado DECIMAL(12,2) NOT NULL,

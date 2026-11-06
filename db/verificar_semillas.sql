@@ -70,7 +70,10 @@ INSERT INTO #chequeo VALUES
   (N'mora de Luis', 10.00, (SELECT valor_tasa_mora * 100 FROM dbo.cliente WHERE id = @luis AND tipo_tasa_mora = 'EFECTIVA')),
   (N'TNA de María', 42.00, (SELECT valor_tasa * 100 FROM dbo.cliente WHERE id = @maria AND tipo_tasa = 'NOMINAL' AND plazo_tasa = 360 AND capitalizacion = 30)),
   (N'mora de María', 12.00, (SELECT valor_tasa_mora * 100 FROM dbo.cliente WHERE id = @maria AND tipo_tasa_mora = 'EFECTIVA')),
-  (N'COK de la tienda', 20.00, (SELECT cok_tea * 100 FROM dbo.tienda WHERE id = @tienda));
+  (N'COK de la tienda', 20.00, (SELECT cok_tea * 100 FROM dbo.tienda WHERE id = @tienda)),
+  (N'giro de la tienda', 1, (SELECT COUNT(*) FROM dbo.tienda WHERE id = @tienda AND giro = N'Minimarket')),
+  (N'teléfono de la tienda', 1, (SELECT COUNT(*) FROM dbo.tienda WHERE id = @tienda AND telefono IS NOT NULL)),
+  (N'columna pago.numero_operacion', 30, COL_LENGTH('dbo.pago', 'numero_operacion'));
 
 -- Hora por defecto de la auditoría: debe ser la de Lima (UTC-5).
 BEGIN TRANSACTION;
@@ -105,8 +108,8 @@ END CATCH;
 BEGIN TRY
   BEGIN TRANSACTION;
   DECLARE @otra BIGINT, @prod BIGINT;
-  INSERT INTO dbo.tienda (duenio_id, ruc, razon_social, nombre_comercial, cok_tea)
-  SELECT duenio_id, '20000000001', N'Otra', N'Otra', 0.2 FROM dbo.tienda WHERE id = @tienda;
+  INSERT INTO dbo.tienda (duenio_id, ruc, razon_social, nombre_comercial, giro, cok_tea)
+  SELECT duenio_id, '20000000001', N'Otra', N'Otra', N'Otro', 0.2 FROM dbo.tienda WHERE id = @tienda;
   SET @otra = SCOPE_IDENTITY();
   INSERT INTO dbo.producto (tienda_id, codigo, nombre, unidad, precio_contado, precio_lista, permite_fin_mes, permite_cuotas)
   VALUES (@otra, 'X1', N'Ajeno', 'UND', 1.00, 1.00, 1, 0);
@@ -124,8 +127,8 @@ END CATCH;
 BEGIN TRY
   BEGIN TRANSACTION;
   DECLARE @otra2 BIGINT;
-  INSERT INTO dbo.tienda (duenio_id, ruc, razon_social, nombre_comercial, cok_tea)
-  SELECT duenio_id, '20000000002', N'Otra', N'Otra', 0.2 FROM dbo.tienda WHERE id = @tienda;
+  INSERT INTO dbo.tienda (duenio_id, ruc, razon_social, nombre_comercial, giro, cok_tea)
+  SELECT duenio_id, '20000000002', N'Otra', N'Otra', N'Otro', 0.2 FROM dbo.tienda WHERE id = @tienda;
   SET @otra2 = SCOPE_IDENTITY();
   INSERT INTO dbo.compra (tienda_id, cliente_id, ticket, fecha_hora, modalidad, monto_lista, monto_contado, fecha_corte, fecha_pago)
   VALUES (@otra2, @luis, 'X-1', '2026-09-01T10:00:00', 'FIN_MES', 1.00, 1.00, '2026-09-20', '2026-09-26');

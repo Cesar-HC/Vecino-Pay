@@ -55,10 +55,13 @@ npm run dev:web    # web en http://localhost:5173 (redirige /api a la API)
 
 ## Base de datos y semillas
 
-`db/init` crea las 11 tablas de la sección 8 del informe y carga los juegos de prueba 1 y 2, con el
-estado al 22/09/2026. Los scripts se aplican en cada arranque y no repiten nada: si la tienda ya existe,
-las semillas no cambian. Para volver al estado inicial (o aplicar un cambio de esquema) usa
-`docker compose down -v`.
+`db/init` crea las 11 tablas de la sección 8 del informe, más las 3 columnas registradas en
+`docs/decisiones.md`, y carga los juegos de prueba 1 y 2, con el estado al 22/09/2026. Los scripts se
+aplican en cada arranque y no repiten nada: si la tienda ya existe, las semillas no cambian. Para volver
+al estado inicial (o aplicar un cambio de esquema) usa `docker compose down -v`, que borra todos los datos.
+
+Si `db-init` falla con `Invalid column name 'giro'`, tu volumen tiene el esquema anterior y la API no
+arrancará hasta recrearlo con ese comando.
 
 ```powershell
 npm run db:verificar   # compara la BD con las cifras del informe; falla si algo no coincide
@@ -91,8 +94,8 @@ Los datos que no salen del informe están marcados como `FICTICIO (demo)` en `db
 | Fase | Entregable | Estado |
 |---|---|---|
 | 0 | Monorepo, docker-compose, README, zona America/Lima | En revisión |
-| 1 | Esquema SQL de 11 tablas y semillas (juegos 1 y 2) | En revisión |
-| 2 | Motor financiero con pruebas al céntimo | En revisión |
+| 1 | Esquema SQL de 11 tablas y semillas (juegos 1 y 2) | Aprobada |
+| 2 | Motor financiero con pruebas al céntimo | Aprobada |
 | 3 | API: auth, roles, multitienda, compras, corte, listados, pagos, cronogramas, auditoría | Pendiente |
 | 4 | Web del administrador y del dueño (A01–A05, D01–D08) | Pendiente |
 | 5 | Vista móvil del cliente (C01–C09) | Pendiente |

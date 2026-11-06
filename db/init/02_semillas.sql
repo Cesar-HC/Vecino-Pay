@@ -42,9 +42,9 @@ VALUES ('CLIENTE', '45872316', '$2a$10$w4th75Fz5Qci/qxqvQgx0.tQDKM8lXYZhGe6X13PM
 SET @u_luis = SCOPE_IDENTITY();
 
 -- Tienda. Del informe: nombre comercial y COK. El RUC es el ejemplo de la Tabla 7, y lo asocia a esta tienda
--- docs/prompt_desarrollo.md. FICTICIO (demo): razón social y dirección.
-INSERT INTO dbo.tienda (duenio_id, ruc, razon_social, nombre_comercial, direccion, cok_tea)
-VALUES (@rosa, '10412587369', N'Rosa Mamani', N'Minimarket Doña Rosa', N'Av. Los Vecinos 123, Lima', 0.200000000);
+-- docs/prompt_desarrollo.md. FICTICIO (demo): razón social, giro, dirección y teléfono.
+INSERT INTO dbo.tienda (duenio_id, ruc, razon_social, nombre_comercial, giro, direccion, telefono, cok_tea)
+VALUES (@rosa, '10412587369', N'Rosa Mamani', N'Minimarket Doña Rosa', N'Minimarket', N'Av. Los Vecinos 123, Lima', '014000111', 0.200000000);
 SET @tienda = SCOPE_IDENTITY();
 
 -- Clientes. Del informe: límites, tasas, días de corte y pago, y max_meses de María (6.4).
