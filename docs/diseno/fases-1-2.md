@@ -223,7 +223,7 @@ Solo T-000284 es `CUOTAS`, con `num_cuotas` 3, `dias_gracia` 11, `capital_capita
 
 María no tiene listado: su primera cuota entra al corte del 20/10. T-000301 tampoco está listada. `pago` queda vacía.
 
-### 4.7 Auditoría (9 filas, `tienda_id` Doña Rosa)
+### 4.7 Auditoría (10 filas, `tienda_id` Doña Rosa)
 
 | `fecha_hora` | Usuario | Acción | Tabla | `registro_id` | Detalle |
 |---|---|---|---|---|---|
@@ -488,7 +488,7 @@ Se expone como `npm run db:verificar`.
 |---|---|
 | Filas: usuario, tienda, producto, cliente | 3, 1, 9, 2 |
 | Filas: compra, compra_detalle, cuota | 7, 19, 3 |
-| Filas: listado_pago, listado_item, pago, auditoria | 1, 5, 0, 9 |
+| Filas: listado_pago, listado_item, pago, auditoria | 1, 5, 0, 10 |
 | CPC, suma de `monto_lista` en PENDIENTE (solo este estado, no define SU) | 502.72 |
 | SU Luis / uso Luis / disponible Luis | 244.92 / 49.0 / 255.08 |
 | SU María / uso María / disponible María | 257.80 / 43.0 / 342.20 |

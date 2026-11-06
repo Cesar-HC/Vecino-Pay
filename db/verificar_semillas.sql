@@ -24,7 +24,7 @@ INSERT INTO #chequeo VALUES
   (N'filas listado_pago',   1, (SELECT COUNT(*) FROM dbo.listado_pago)),
   (N'filas listado_item',   5, (SELECT COUNT(*) FROM dbo.listado_item)),
   (N'filas pago',           0, (SELECT COUNT(*) FROM dbo.pago)),
-  (N'filas auditoria',      9, (SELECT COUNT(*) FROM dbo.auditoria));
+  (N'filas auditoria',      10, (SELECT COUNT(*) FROM dbo.auditoria));
 
 -- D01 y 6.3m. La suma de monto_lista solo vale en este estado: no define la regla de SU (ver escalaciones).
 INSERT INTO #chequeo VALUES
@@ -57,6 +57,7 @@ INSERT INTO #chequeo VALUES
   (N'T-000301 fecha de pago', 20261026, (SELECT CONVERT(INT, CONVERT(CHAR(8), fecha_pago, 112)) FROM dbo.compra WHERE ticket = 'T-000301')),
   (N'T-000301 en listados', 0, (SELECT COUNT(*) FROM dbo.listado_item i JOIN dbo.compra c ON c.id = i.compra_id WHERE c.ticket = 'T-000301')),
   (N'auditoría ALTA sin usuario', 1, (SELECT COUNT(*) FROM dbo.auditoria WHERE accion = 'ALTA' AND usuario_id IS NULL)),
+  (N'auditoría ALTA de la tienda', 1, (SELECT COUNT(*) FROM dbo.auditoria WHERE accion = 'ALTA' AND tabla = 'tienda' AND registro_id = @tienda)),
   (N'auditoría RECHAZO sin registro', 1, (SELECT COUNT(*) FROM dbo.auditoria WHERE accion = 'RECHAZO' AND registro_id IS NULL)),
   (N'Luis activado', 1, (SELECT COUNT(*) FROM dbo.cliente WHERE id = @luis AND usuario_id IS NOT NULL AND codigo_activacion IS NULL)),
   (N'María sin activar', 1, (SELECT COUNT(*) FROM dbo.cliente WHERE id = @maria AND usuario_id IS NULL AND codigo_activacion = 'MDR-7K2Q')),

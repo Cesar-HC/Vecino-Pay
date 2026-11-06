@@ -162,3 +162,16 @@ VALUES (NULL, @tienda, '2026-09-20T17:00:00', 'ALTA', 'listado_pago', @listado,
 COMMIT TRANSACTION;
 PRINT 'Semillas de los juegos 1 y 2 cargadas.';
 GO
+
+-- Alta de la tienda para el gráfico de A02 (la Tabla 24 no tiene fecha de alta).
+-- Lote aparte: el primero termina con RETURN si la tienda ya existe, así también llega a una BD ya cargada.
+-- FICTICIO (demo): la fecha; solo debe ser anterior a T-000231.
+IF EXISTS (SELECT 1 FROM dbo.tienda WHERE ruc = '10412587369')
+   AND NOT EXISTS (SELECT 1 FROM dbo.auditoria a JOIN dbo.tienda t ON t.id = a.registro_id
+                   WHERE a.tabla = 'tienda' AND a.accion = 'ALTA' AND t.ruc = '10412587369')
+  INSERT INTO dbo.auditoria (usuario_id, tienda_id, fecha_hora, accion, tabla, registro_id, detalle)
+  SELECT u.id, t.id, '2026-08-01T09:00:00', 'ALTA', 'tienda', t.id, N'Alta de la tienda Minimarket Doña Rosa'
+  FROM dbo.tienda t
+  JOIN dbo.usuario u ON u.username = 'admin@vecinopay.test'
+  WHERE t.ruc = '10412587369';
+GO

@@ -9,7 +9,7 @@ services:
       MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-VecinoPay#2026}
       TZ: America/Lima
     ports:
-      - '${DB_PORT:-1433}:1433'
+      - '127.0.0.1:${DB_PORT:-1433}:1433'
     volumes:
       - datos-sql:/var/opt/mssql
     healthcheck:
@@ -31,6 +31,7 @@ services:
         condition: service_healthy
     environment:
       MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-VecinoPay#2026}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-VecinoApp#2026}
     volumes:
       - ./db:/db:ro
     entrypoint: ['/bin/bash', '/db/init/ejecutar.sh']
@@ -47,7 +48,10 @@ services:
       PORT: 3000
       TZ: America/Lima
       JWT_SECRET: ${JWT_SECRET:-cambia-este-secreto}
-      DATABASE_URL: sqlserver://db:1433;database=${DB_NAME:-VecinoPay};user=sa;password=${MSSQL_SA_PASSWORD:-VecinoPay#2026};encrypt=true;trustServerCertificate=true
+      NODE_ENV: ${NODE_ENV:-development}
+      # Fecha de la demo (D01, C03). Definirla vacía activa la hora real.
+      RELOJ_FIJO: ${RELOJ_FIJO-2026-09-22T12:00:00-05:00}
+      DATABASE_URL: sqlserver://db:1433;database=${DB_NAME:-VecinoPay};user=vecinopay_app;password=${APP_DB_PASSWORD:-VecinoApp#2026};encrypt=true;trustServerCertificate=true
     ports:
       - '${API_PORT:-3000}:3000'
 
