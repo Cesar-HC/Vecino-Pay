@@ -53,6 +53,31 @@ npm run dev:api    # API en http://localhost:3000
 npm run dev:web    # web en http://localhost:5173 (redirige /api a la API)
 ```
 
+## Base de datos y semillas
+
+`db/init` crea las 11 tablas de la sección 8 del informe y carga los juegos de prueba 1 y 2, con el
+estado al 22/09/2026. Los scripts se aplican en cada arranque y no repiten nada: si la tienda ya existe,
+las semillas no cambian. Para volver al estado inicial (o aplicar un cambio de esquema) usa
+`docker compose down -v`.
+
+```powershell
+npm run db:verificar   # compara la BD con las cifras del informe; falla si algo no coincide
+```
+
+La verificación solo vale con las semillas recién cargadas, antes de operar en la demo. Sus pruebas se
+revierten, pero pueden dejar huecos en los id autogenerados, lo que no afecta a ninguna cifra.
+
+Usuarios de demo (solo para desarrollo local):
+
+| Usuario | Perfil | Contraseña |
+|---|---|---|
+| `admin@vecinopay.test` | Administrador | `Admin#2026` |
+| `rosa@vecinopay.test` | Dueña de Minimarket Doña Rosa | `Tienda#2026` |
+| `45872316` | Luis Quispe, cuenta activada | `Vecino#2026` |
+
+María Huamán (DNI `40000002`) queda sin activar para demostrar la activación con el código `MDR-7K2Q`.
+Los datos que no salen del informe están marcados como `FICTICIO (demo)` en `db/init/02_semillas.sql`.
+
 ## Reglas fijas del sistema
 
 - Zona horaria **America/Lima** en todos los contenedores y en los cálculos.
@@ -66,8 +91,8 @@ npm run dev:web    # web en http://localhost:5173 (redirige /api a la API)
 | Fase | Entregable | Estado |
 |---|---|---|
 | 0 | Monorepo, docker-compose, README, zona America/Lima | En revisión |
-| 1 | Esquema SQL de 11 tablas y semillas (juegos 1 y 2) | Pendiente |
-| 2 | Motor financiero con pruebas al céntimo | Pendiente |
+| 1 | Esquema SQL de 11 tablas y semillas (juegos 1 y 2) | En revisión |
+| 2 | Motor financiero con pruebas al céntimo | En revisión |
 | 3 | API: auth, roles, multitienda, compras, corte, listados, pagos, cronogramas, auditoría | Pendiente |
 | 4 | Web del administrador y del dueño (A01–A05, D01–D08) | Pendiente |
 | 5 | Vista móvil del cliente (C01–C09) | Pendiente |

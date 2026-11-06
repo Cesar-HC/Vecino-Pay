@@ -19,6 +19,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "db:up": "docker compose up -d db db-init",
+    "db:verificar": "docker compose run --rm --entrypoint /bin/bash db-init /db/verificar.sh",
     "up": "docker compose up -d --build",
     "down": "docker compose down"
   },
