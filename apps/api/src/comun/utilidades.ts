@@ -1,7 +1,7 @@
 import { createParamDecorator, ExecutionContext, Injectable, PipeTransform, SetMetadata } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { aDec, Dec, Entrada, Moneda, simboloMoneda, soles } from '@vecinopay/finance';
-import { IsISO8601, IsOptional, Matches, Max, Min } from 'class-validator';
+import { IsInt, IsISO8601, Matches, Max, Min, ValidateIf } from 'class-validator';
 import { Type } from 'class-transformer';
 import { noExiste } from './error-negocio';
 
@@ -50,16 +50,22 @@ export const IsTasaTexto = () =>
   Matches(/^\d{1,3}(\.\d{1,9})?$/, { message: '$property debe ser una tasa en texto, en tanto por uno, con hasta 9 decimales.' });
 export const IsIdTexto = () => Matches(/^\d{1,18}$/, { message: '$property debe ser un id en texto.' });
 
+/** Como IsOptional, pero sin dejar pasar null: las columnas opcionales de los DTO no se vacían con null. */
+export const Opcional = () => ValidateIf((_, valor) => valor !== undefined);
+
+/** La colación de la BD iguala variantes de ancho y otras: un usuario solo admite ASCII imprimible. */
+export const IsUsuario = () => Matches(/^[\x20-\x7e]+$/, { message: 'El usuario solo admite letras sin acentos, números y símbolos comunes.' });
+
 /** Fecha AAAA-MM-DD que además existe en el calendario. */
 export const IsFecha = () => (objetivo: object, propiedad: string) => {
-  Matches(/^\d{4}-\d{2}-\d{2}$/, { message: '$property debe tener el formato AAAA-MM-DD.' })(objetivo, propiedad);
+  Matches(/^(19|20)\d{2}-\d{2}-\d{2}$/, { message: '$property debe tener el formato AAAA-MM-DD, entre 1900 y 2099.' })(objetivo, propiedad);
   IsISO8601({ strict: true }, { message: '$property no es una fecha válida.' })(objetivo, propiedad);
 };
 
 /** Listas: ?pagina=1&tamano=50. */
 export class PaginaDto {
-  @IsOptional() @Type(() => Number) @Min(1) pagina?: number;
-  @IsOptional() @Type(() => Number) @Min(1) @Max(200) tamano?: number;
+  @Opcional() @Type(() => Number) @IsInt() @Min(1) @Max(1000000) pagina?: number;
+  @Opcional() @Type(() => Number) @IsInt() @Min(1) @Max(200) tamano?: number;
 }
 
 export const paginar = (f: PaginaDto) => {

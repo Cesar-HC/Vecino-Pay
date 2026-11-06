@@ -53,7 +53,7 @@ services:
       RELOJ_FIJO: ${RELOJ_FIJO-2026-09-22T12:00:00-05:00}
       DATABASE_URL: sqlserver://db:1433;database=${DB_NAME:-VecinoPay};user=vecinopay_app;password=${APP_DB_PASSWORD:-VecinoApp#2026};encrypt=true;trustServerCertificate=true
     ports:
-      - '${API_PORT:-3000}:3000'
+      - '127.0.0.1:${API_PORT:-3000}:3000'
 
   web:
     build:

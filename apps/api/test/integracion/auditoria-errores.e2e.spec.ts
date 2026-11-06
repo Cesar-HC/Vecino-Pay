@@ -253,6 +253,36 @@ describe('códigos de error del contrato', () => {
     expect(cero.body.codigo).toBe('CANTIDAD');
   });
 
+  it('más entradas raras: 400 o 404 en español, nunca 500', async () => {
+    const id = (await p.post('/clientes', t.token, LUIS(dniUnico())).expect(201)).body.id;
+    await p.get('/productos?pagina=1e300', t.token).expect(400);
+    await p.get('/productos?tamano=1.5', t.token).expect(400);
+    await p.get('/auditoria?hasta=9999-12-31', admin).expect(400);
+    const nulo = await p.patch(`/clientes/${id}`, t.token, { nombres: null }).expect(400);
+    expect(nulo.body.mensaje).toContain('nombres');
+    await p.patch(`/clientes/${id}`, t.token, { diaCorte: null }).expect(400);
+    await p.patch(`/clientes/${id}`, t.token, { tasa: null }).expect(400);
+    const ruta = await p.get('/no-existe', t.token).expect(404);
+    expect(ruta.body.mensaje).toBe('La ruta no existe.');
+    const roto = await p.post('/auth/login', undefined).set('Content-Type', 'application/json').send('{roto').expect(400);
+    expect(roto.body.mensaje).toBe('El cuerpo de la petición no es un JSON válido.');
+    const barato = (await p.post('/productos', t.token, { ...productoBase(`J${dniUnico()}`), precioContado: '0.01', precioLista: '0.01' }).expect(201)).body;
+    const linea = await p
+      .post('/compras', t.token, { clienteId: id, modalidad: 'FIN_MES', items: [{ productoId: t.productos.P001, cantidad: '1' }, { productoId: barato.id, cantidad: '0.001' }] })
+      .expect(400);
+    expect(linea.body.codigo).toBe('CANTIDAD');
+  });
+
+  it('una baja repetida no se audita otra vez y A03 muestra el estado del dueño', async () => {
+    const unico = `${Date.now()}`.slice(-9);
+    const creada = (await p.post('/tiendas', admin, { ruc: `50${unico}`, razonSocial: 'Z', nombreComercial: 'Z', giro: 'X', cokTea: '0.2', usuarioDueno: `z${unico}@p.test`, claveTemporal: 'Clave#2026' }).expect(201)).body;
+    const baja = (await p.patch(`/tiendas/${creada.id}/estado`, admin, { estado: 'INACTIVO' }).expect(200)).body;
+    expect(baja.duenio.estado).toBe('INACTIVO');
+    const filas = await p.bd.auditoria.count();
+    await p.patch(`/tiendas/${creada.id}/estado`, admin, { estado: 'INACTIVO' }).expect(200);
+    expect(await p.bd.auditoria.count()).toBe(filas);
+  });
+
   it('paginación y filtros combinados', async () => {
     const r = (await p.get('/productos?pagina=1&tamano=2', t.token).expect(200)).body;
     expect(r.items).toHaveLength(2);
@@ -323,6 +353,19 @@ describe('límite de intentos, con la guardia real', () => {
     for (let i = 0; i < 10; i++) await intentar(variantes[i % variantes.length]).expect(401);
     await intentar('INTRUSO@X.TEST   ').expect(429);
     await intentar('otro@x.test').expect(401); // Otro usuario no queda bloqueado.
+  });
+
+  it('no se evade con caracteres de ancho completo: ni llegan a comparar la clave', async () => {
+    const q2 = (username: string, password: string, perfil: string) => q.post('/auth/login', undefined, { username, password, perfil });
+    const ancho = (s: string) => s.replace('a', '\uFF41').replace('@', '\uFF20');
+    const r = await q2(ancho('admin@vecinopay.test'), 'Admin#2026', 'ADMIN_SISTEMA').expect(400);
+    expect(r.body.mensaje).toContain('usuario');
+    await q2(' a\uFF44min@vecinopay.test', 'Admin#2026', 'ADMIN_SISTEMA').expect(400);
+    const base = 'ancho@x.test';
+    for (let i = 0; i < 9; i++) await q2(i % 2 ? ancho(base) : base, 'mala', 'DUENO').expect(i % 2 ? 400 : 401);
+    await q2(ancho(base), 'mala', 'DUENO').expect(400);
+    const bloqueado = await q2(base, 'mala', 'DUENO').expect(429);
+    expect(bloqueado.body.mensaje).toContain('Demasiados intentos');
   });
 
   it('limita también por IP, ante el rociado de claves', async () => {

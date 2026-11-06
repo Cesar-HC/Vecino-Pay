@@ -55,7 +55,7 @@ export class PlataformaService {
       direccion: t.direccion,
       cokTea: aTasa(t.cok_tea, 9),
       estado: t.estado,
-      duenio: { id: aId(t.usuario.id), username: t.usuario.username, nombres: t.usuario.nombres },
+      duenio: { id: aId(t.usuario.id), username: t.usuario.username, nombres: t.usuario.nombres, estado: t.usuario.estado },
     };
   }
 
@@ -162,8 +162,9 @@ export class PlataformaService {
   /** La baja es lógica. El dueño queda INACTIVO si no le quedan tiendas activas (A04). */
   async estadoTienda(c: Contexto, id: bigint, estado: 'ACTIVO' | 'INACTIVO') {
     return this.bd.transaccionGlobal(async (tx) => {
-      const actual = await tx.tienda.findUnique({ where: { id } });
+      const actual = await tx.tienda.findUnique({ where: { id }, include: { usuario: true } });
       if (!actual) throw noExiste('La tienda');
+      if (actual.estado === estado) return this.tiendaDto(actual); // Nada cambió: no se audita otra baja.
       const t = await tx.tienda.update({ where: { id }, data: { estado }, include: { usuario: true } });
       // Nunca reactiva al dueño: pudo estar dado de baja por otro motivo. Eso se hace aparte en A04.
       let dueno = t.usuario;

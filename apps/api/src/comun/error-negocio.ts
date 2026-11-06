@@ -23,6 +23,14 @@ export class ErrorNegocio extends Error {
 
 export const noExiste = (que = 'El recurso') => new ErrorNegocio(404, 'NO_EXISTE', `${que} no existe.`);
 
+/** Lo que escriben Express y las librerías, que no pasa por nuestros mensajes. */
+function mensajeEnEspanol(estado: number, mensaje: string): string {
+  if (estado === 429) return 'Demasiados intentos. Espera un minuto y vuelve a intentarlo.';
+  if (estado === 404 && mensaje.startsWith('Cannot ')) return 'La ruta no existe.';
+  if (estado === 400 && /JSON|token|Unexpected/i.test(mensaje)) return 'El cuerpo de la petición no es un JSON válido.';
+  return mensaje;
+}
+
 /** Todas las respuestas de error tienen la forma { codigo, mensaje, detalles }. */
 @Catch()
 export class FiltroErrores implements ExceptionFilter {
@@ -48,7 +56,7 @@ export class FiltroErrores implements ExceptionFilter {
         404: 'NO_EXISTE',
         429: 'DEMASIADOS_INTENTOS',
       };
-      res.status(estado).json({ codigo: codigos[estado] ?? 'ERROR', mensaje, detalles: {} });
+      res.status(estado).json({ codigo: codigos[estado] ?? 'ERROR', mensaje: mensajeEnEspanol(estado, mensaje), detalles: {} });
     } else {
       // Un cruce de tienda no debe revelar nada: se registra y se responde como cualquier fallo interno.
       this.log.error(e instanceof FueraDeAmbito ? `Fuera de ámbito: ${e.message}` : e);

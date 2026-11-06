@@ -1,8 +1,8 @@
-import { IsBoolean, IsIn, IsOptional, IsString, Length, Matches, MaxLength, MinLength } from 'class-validator';
-import { IsIdTexto } from '../comun/utilidades';
+import { IsBoolean, IsIn, IsString, Length, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsIdTexto, IsUsuario } from '../comun/utilidades';
 
 export class LoginDto {
-  @IsString() @MaxLength(120) username: string;
+  @IsString() @MaxLength(120) @IsUsuario() username: string;
   @IsString() @MaxLength(200) password: string;
   @IsIn(['ADMIN_SISTEMA', 'DUENO', 'CLIENTE']) perfil: 'ADMIN_SISTEMA' | 'DUENO' | 'CLIENTE';
 }
@@ -23,8 +23,4 @@ export class CambiarContrasenaDto {
 
 export class CambiarTiendaDto {
   @IsIdTexto() tiendaId: string;
-}
-
-export class FiltroOpcionalDto {
-  @IsOptional() @IsString() texto?: string;
 }

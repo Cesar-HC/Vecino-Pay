@@ -2,12 +2,12 @@ import { Body, Controller, Get, Injectable, Param, Patch, Post, Query } from '@n
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { producto } from '@prisma/client';
 import { validarPrecios } from '@vecinopay/finance';
-import { IsBoolean, IsIn, IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator';
+import { IsBoolean, IsIn, IsString, Length, Matches, MaxLength } from 'class-validator';
 import { BdService } from '../bd/bd.service';
 import { aDecBd, aDecimalBd } from '../bd/conversiones';
 import { restriccionUnica } from '../bd/errores-bd';
 import { ErrorNegocio, noExiste } from '../comun/error-negocio';
-import { aId, aSoles, ContextoDueno, Ctx, IsMonto, PaginaDto, paginar, ParseIdPipe, Roles } from '../comun/utilidades';
+import { aId, aSoles, ContextoDueno, Ctx, IsMonto, Opcional, PaginaDto, paginar, ParseIdPipe, Roles } from '../comun/utilidades';
 import { EstadoDto } from '../plataforma/plataforma.dto';
 
 const URL_IMAGEN = /^https?:\/\/\S+\.(jpg|jpeg|png)$/i;
@@ -15,11 +15,11 @@ const URL_IMAGEN = /^https?:\/\/\S+\.(jpg|jpeg|png)$/i;
 export class CrearProductoDto {
   @IsString() @Length(1, 30) codigo: string;
   @IsString() @Length(1, 120) nombre: string;
-  @IsOptional() @IsString() @MaxLength(60) marca?: string;
-  @IsOptional() @IsString() @MaxLength(500) descripcion?: string;
+  @Opcional() @IsString() @MaxLength(60) marca?: string;
+  @Opcional() @IsString() @MaxLength(500) descripcion?: string;
   @IsString() @Length(1, 5) unidad: string;
-  @IsOptional() @IsString() @MaxLength(150) proveedor?: string;
-  @IsOptional() @Matches(URL_IMAGEN, { message: 'La imagen debe ser una URL .jpg o .png.' }) @MaxLength(300) imagenUrl?: string;
+  @Opcional() @IsString() @MaxLength(150) proveedor?: string;
+  @Opcional() @Matches(URL_IMAGEN, { message: 'La imagen debe ser una URL .jpg o .png.' }) @MaxLength(300) imagenUrl?: string;
   @IsMonto(8) precioContado: string;
   @IsMonto(8) precioLista: string;
   @IsBoolean() permiteFinMes: boolean;
@@ -27,23 +27,23 @@ export class CrearProductoDto {
 }
 
 export class EditarProductoDto {
-  @IsOptional() @IsString() @Length(1, 30) codigo?: string;
-  @IsOptional() @IsString() @Length(1, 120) nombre?: string;
-  @IsOptional() @IsString() @MaxLength(60) marca?: string;
-  @IsOptional() @IsString() @MaxLength(500) descripcion?: string;
-  @IsOptional() @IsString() @Length(1, 5) unidad?: string;
-  @IsOptional() @IsString() @MaxLength(150) proveedor?: string;
-  @IsOptional() @Matches(URL_IMAGEN, { message: 'La imagen debe ser una URL .jpg o .png.' }) @MaxLength(300) imagenUrl?: string;
-  @IsOptional() @IsMonto(8) precioContado?: string;
-  @IsOptional() @IsMonto(8) precioLista?: string;
-  @IsOptional() @IsBoolean() permiteFinMes?: boolean;
-  @IsOptional() @IsBoolean() permiteCuotas?: boolean;
+  @Opcional() @IsString() @Length(1, 30) codigo?: string;
+  @Opcional() @IsString() @Length(1, 120) nombre?: string;
+  @Opcional() @IsString() @MaxLength(60) marca?: string;
+  @Opcional() @IsString() @MaxLength(500) descripcion?: string;
+  @Opcional() @IsString() @Length(1, 5) unidad?: string;
+  @Opcional() @IsString() @MaxLength(150) proveedor?: string;
+  @Opcional() @Matches(URL_IMAGEN, { message: 'La imagen debe ser una URL .jpg o .png.' }) @MaxLength(300) imagenUrl?: string;
+  @Opcional() @IsMonto(8) precioContado?: string;
+  @Opcional() @IsMonto(8) precioLista?: string;
+  @Opcional() @IsBoolean() permiteFinMes?: boolean;
+  @Opcional() @IsBoolean() permiteCuotas?: boolean;
 }
 
 export class FiltroProductosDto extends PaginaDto {
-  @IsOptional() @IsString() texto?: string;
-  @IsOptional() @IsIn(['ACTIVO', 'INACTIVO']) estado?: string;
-  @IsOptional() @IsIn(['FIN_MES', 'CUOTAS']) modalidad?: string;
+  @Opcional() @IsString() texto?: string;
+  @Opcional() @IsIn(['ACTIVO', 'INACTIVO']) estado?: string;
+  @Opcional() @IsIn(['FIN_MES', 'CUOTAS']) modalidad?: string;
 }
 
 const productoDto = (p: producto) => ({

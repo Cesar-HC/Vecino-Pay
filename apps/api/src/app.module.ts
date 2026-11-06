@@ -67,14 +67,16 @@ import { SaludController } from './salud.controller';
 export class AppModule {}
 
 /** Los mensajes propios ya están en español; los de la librería se reemplazan (Tabla 11). */
-function mensajesEnEspanol(errores: ValidationError[]): string[] {
-  return errores.flatMap((e) => {
-    if (e.children?.length) return mensajesEnEspanol(e.children);
+function mensajesEnEspanol(errores: ValidationError[], padre = ''): string[] {
+  const mensajes = errores.flatMap((e) => {
+    const campo = padre ? `${padre}.${e.property}` : e.property;
+    if (e.children?.length) return mensajesEnEspanol(e.children, campo);
     return Object.entries(e.constraints ?? {}).map(([regla, mensaje]) => {
-      if (regla === 'whitelistValidation') return `El campo ${e.property} no está permitido.`;
-      return /\b(must|should)\b/.test(mensaje) ? `El campo ${e.property} no es válido.` : mensaje;
+      if (regla === 'whitelistValidation') return `El campo ${campo} no está permitido.`;
+      return /\b(must|should)\b/.test(mensaje) ? `El campo ${campo} no es válido.` : mensaje;
     });
   });
+  return [...new Set(mensajes)];
 }
 
 /** Lo que comparten el arranque real y las pruebas. */

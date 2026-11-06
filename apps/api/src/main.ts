@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { resolve } from 'node:path';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { Settings } from 'luxon';
@@ -27,7 +28,9 @@ async function bootstrap() {
   // Todo el sistema trabaja en hora de Lima, sin importar la zona del servidor.
   Settings.defaultZone = ZONA_HORARIA;
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Solo nginx llega a la API (publicada en 127.0.0.1): su cabecera da la IP real para el límite de intentos.
+  app.set('trust proxy', 1);
   configurarApp(app);
   app.use(helmet());
   app.enableCors({ origin: config.corsOrigenes });

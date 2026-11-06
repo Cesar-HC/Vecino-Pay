@@ -20,14 +20,14 @@ import {
   validarModalidad,
 } from '@vecinopay/finance';
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsArray, IsIn, IsInt, IsOptional, Matches, ValidateIf, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsIn, IsInt, Matches, ValidateIf, ValidateNested } from 'class-validator';
 import { Ambito } from '../bd/ambito-tienda';
 import { BdService, TrabajoTienda } from '../bd/bd.service';
 import { aDecBd, aFechaBd, aInstanteBd, deFechaBd, dePartesBd } from '../bd/conversiones';
 import { comprasParaSu } from '../clientes/clientes';
 import { calcularSu } from '../clientes/saldos';
 import { ErrorNegocio, noExiste } from '../comun/error-negocio';
-import { aId, aPorcentaje, aSoles, aTasa, conSimbolo, ContextoDueno, Ctx, IsIdTexto, PaginaDto, paginar, ParseIdPipe, Roles } from '../comun/utilidades';
+import { aId, aPorcentaje, aSoles, aTasa, conSimbolo, ContextoDueno, Ctx, IsIdTexto, Opcional, PaginaDto, paginar, ParseIdPipe, Roles } from '../comun/utilidades';
 
 export class ItemCompraDto {
   @IsIdTexto() productoId: string;
@@ -43,9 +43,9 @@ export class CompraDto {
 }
 
 export class FiltroComprasDto extends PaginaDto {
-  @IsOptional() @IsIdTexto() clienteId?: string;
-  @IsOptional() @IsIn(['PENDIENTE', 'PAGADA', 'ANULADA']) estado?: string;
-  @IsOptional() @IsIn(['FIN_MES', 'CUOTAS']) modalidad?: string;
+  @Opcional() @IsIdTexto() clienteId?: string;
+  @Opcional() @IsIn(['PENDIENTE', 'PAGADA', 'ANULADA']) estado?: string;
+  @Opcional() @IsIn(['FIN_MES', 'CUOTAS']) modalidad?: string;
 }
 
 /** Lo que el simulador muestra y lo que el registro guarda: salen del mismo cálculo. */
@@ -80,6 +80,9 @@ async function calcularCompra(
     if (!cantidad.gt(0)) throw new ErrorNegocio(400, 'CANTIDAD', 'La cantidad debe ser mayor que cero.');
     const lista = aDecBd(producto.precio_lista);
     const contado = aDecBd(producto.precio_contado);
+    if (!red(cantidad.times(contado)).gt(0)) {
+      throw new ErrorNegocio(400, 'CANTIDAD', 'La cantidad es demasiado pequeña: el monto se redondea a cero.');
+    }
     return {
       producto,
       cantidad,
@@ -91,7 +94,6 @@ async function calcularCompra(
   });
   const montoLista = detalle.reduce<Dec>((s, d) => s.plus(d.subtotal), new Dec(0));
   const montoContado = detalle.reduce<Dec>((s, d) => s.plus(d.subtotalContado), new Dec(0));
-  if (!montoContado.gt(0)) throw new ErrorNegocio(400, 'CANTIDAD', 'La cantidad es demasiado pequeña: el monto se redondea a cero.');
 
   const fechaOperativa = fechaOperativaLocal(p.fecha, p.hora);
   const ciclo = asignarCiclo({ fechaOperativa, diaCorte: cliente.dia_corte, diaPago: cliente.dia_pago });
@@ -322,7 +324,7 @@ export class ComprasService {
       estado: f.estado,
       modalidad: f.modalidad,
     };
-    const items = await bd.compra.findMany({ where, orderBy: { fecha_hora: 'asc' }, ...paginar(f) });
+    const items = await bd.compra.findMany({ where, orderBy: [{ fecha_hora: 'asc' }, { id: 'asc' }], ...paginar(f) });
     return { items: items.map(compraDto), total: await bd.compra.count({ where }) };
   }
 

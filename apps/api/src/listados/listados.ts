@@ -15,7 +15,7 @@ import {
   tea,
   valorHoy,
 } from '@vecinopay/finance';
-import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsIn, IsString, MaxLength } from 'class-validator';
 import { armarDetalle } from '../auditoria/detalle';
 import { Ambito } from '../bd/ambito-tienda';
 import { BdService } from '../bd/bd.service';
@@ -24,23 +24,23 @@ import { restriccionUnica } from '../bd/errores-bd';
 import { comprasParaSu } from '../clientes/clientes';
 import { calcularSu, CompraParaSu } from '../clientes/saldos';
 import { ErrorNegocio, noExiste } from '../comun/error-negocio';
-import { aId, aSoles, aTasa, conSimbolo, ContextoDueno, Ctx, IsFecha, IsIdTexto, IsMonto, PaginaDto, paginar, ParseIdPipe, Roles } from '../comun/utilidades';
+import { aId, aSoles, aTasa, conSimbolo, ContextoDueno, Ctx, IsFecha, IsIdTexto, IsMonto, Opcional, PaginaDto, paginar, ParseIdPipe, Roles } from '../comun/utilidades';
 import { RELOJ, Reloj } from '../reloj/reloj';
 
 export class PagoDto {
   @IsMonto() montoPagado: string;
   @IsIn(['Efectivo', 'Yape', 'Plin', 'Transferencia']) medioPago: string;
-  @IsOptional() @IsString() @MaxLength(30) numeroOperacion?: string;
+  @Opcional() @IsString() @MaxLength(30) numeroOperacion?: string;
 }
 
 export class FiltroListadosDto extends PaginaDto {
-  @IsOptional() @IsIdTexto() clienteId?: string;
-  @IsOptional() @IsIn(['EMITIDO', 'PAGADO', 'VENCIDO']) estado?: string;
-  @IsOptional() @IsFecha() fechaCorte?: string;
+  @Opcional() @IsIdTexto() clienteId?: string;
+  @Opcional() @IsIn(['EMITIDO', 'PAGADO', 'VENCIDO']) estado?: string;
+  @Opcional() @IsFecha() fechaCorte?: string;
 }
 
 export class ValorHoyDto {
-  @IsOptional() @IsFecha() fecha?: string;
+  @Opcional() @IsFecha() fecha?: string;
 }
 
 /** Vencido si no está pagado y su fecha de pago ya pasó. Se calcula al leer: con reloj fijo el trabajo diario no corre. */

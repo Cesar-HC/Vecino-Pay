@@ -20,7 +20,7 @@ import {
   validarTasa,
 } from '@vecinopay/finance';
 import { Type } from 'class-transformer';
-import { Equals, IsDefined, IsIn, IsInt, IsOptional, IsString, Length, Matches, MaxLength, ValidateNested } from 'class-validator';
+import { Equals, IsDefined, IsIn, IsInt, IsString, Length, Matches, MaxLength, ValidateNested } from 'class-validator';
 import { Inject } from '@nestjs/common';
 import { armarDetalle } from '../auditoria/detalle';
 import { Ambito } from '../bd/ambito-tienda';
@@ -28,7 +28,7 @@ import { BdService } from '../bd/bd.service';
 import { aDecBd, aDecimalBd, deFechaBd } from '../bd/conversiones';
 import { restriccionUnica } from '../bd/errores-bd';
 import { ErrorNegocio, noExiste } from '../comun/error-negocio';
-import { aId, aSoles, aTasa, ContextoDueno, Ctx, IsMonto, IsTasaTexto, PaginaDto, paginar, ParseIdPipe, Roles } from '../comun/utilidades';
+import { aId, aSoles, aTasa, ContextoDueno, Ctx, IsMonto, IsTasaTexto, Opcional, PaginaDto, paginar, ParseIdPipe, Roles } from '../comun/utilidades';
 import { EstadoDto } from '../plataforma/plataforma.dto';
 import { RELOJ, Reloj } from '../reloj/reloj';
 import { calcularSu, CompraParaSu } from './saldos';
@@ -37,15 +37,15 @@ export class TasaDto {
   @IsIn(['EFECTIVA', 'NOMINAL']) tipo: 'EFECTIVA' | 'NOMINAL';
   @IsTasaTexto() valor: string;
   @IsInt() plazo: number;
-  @IsOptional() @IsInt() capitalizacion?: number;
+  @Opcional() @IsInt() capitalizacion?: number;
 }
 
 export class CrearClienteDto {
   @Matches(/^\d{8}$/, { message: 'El DNI debe tener 8 dígitos.' }) dni: string;
   @IsString() @Length(1, 80) nombres: string;
   @IsString() @Length(1, 80) apellidos: string;
-  @IsOptional() @IsString() @MaxLength(15) celular?: string;
-  @IsOptional() @IsString() @MaxLength(200) direccion?: string;
+  @Opcional() @IsString() @MaxLength(15) celular?: string;
+  @Opcional() @IsString() @MaxLength(200) direccion?: string;
   @Equals(true, { message: 'Debe constar que el cliente aceptó el tratamiento de sus datos personales.' }) aceptaDatos: boolean;
   @IsIn(['PEN', 'USD']) moneda: 'PEN' | 'USD';
   @IsMonto() limiteCredito: string;
@@ -57,17 +57,17 @@ export class CrearClienteDto {
 }
 
 export class EditarClienteDto {
-  @IsOptional() @IsString() @Length(1, 80) nombres?: string;
-  @IsOptional() @IsString() @Length(1, 80) apellidos?: string;
-  @IsOptional() @IsString() @MaxLength(15) celular?: string;
-  @IsOptional() @IsString() @MaxLength(200) direccion?: string;
-  @IsOptional() @IsIn(['PEN', 'USD']) moneda?: 'PEN' | 'USD';
-  @IsOptional() @IsMonto() limiteCredito?: string;
-  @IsOptional() @IsInt() maxMeses?: number;
-  @IsOptional() @IsInt() diaCorte?: number;
-  @IsOptional() @IsInt() diaPago?: number;
-  @IsOptional() @ValidateNested() @Type(() => TasaDto) tasa?: TasaDto;
-  @IsOptional() @ValidateNested() @Type(() => TasaDto) tasaMora?: TasaDto;
+  @Opcional() @IsString() @Length(1, 80) nombres?: string;
+  @Opcional() @IsString() @Length(1, 80) apellidos?: string;
+  @Opcional() @IsString() @MaxLength(15) celular?: string;
+  @Opcional() @IsString() @MaxLength(200) direccion?: string;
+  @Opcional() @IsIn(['PEN', 'USD']) moneda?: 'PEN' | 'USD';
+  @Opcional() @IsMonto() limiteCredito?: string;
+  @Opcional() @IsInt() maxMeses?: number;
+  @Opcional() @IsInt() diaCorte?: number;
+  @Opcional() @IsInt() diaPago?: number;
+  @Opcional() @ValidateNested() @Type(() => TasaDto) tasa?: TasaDto;
+  @Opcional() @ValidateNested() @Type(() => TasaDto) tasaMora?: TasaDto;
 }
 
 export class CalcularTasasDto {
@@ -75,8 +75,8 @@ export class CalcularTasasDto {
 }
 
 export class FiltroClientesDto extends PaginaDto {
-  @IsOptional() @IsString() texto?: string;
-  @IsOptional() @IsIn(['ACTIVO', 'INACTIVO']) estado?: string;
+  @Opcional() @IsString() texto?: string;
+  @Opcional() @IsIn(['ACTIVO', 'INACTIVO']) estado?: string;
 }
 
 /** Único punto donde se validan y calculan tasas. Si Adrián pide un tope, va aquí. */
