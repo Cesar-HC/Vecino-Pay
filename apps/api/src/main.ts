@@ -1,29 +1,48 @@
 import 'reflect-metadata';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import helmet from 'helmet';
 import { Settings } from 'luxon';
 import { ZONA_HORARIA } from '@vecinopay/finance';
-import { AppModule } from './app.module';
+import { AppModule, configurarApp } from './app.module';
+import { cargarConfiguracion, ConfiguracionInvalida } from './config/configuracion';
 
 async function bootstrap() {
+  // En desarrollo local toma ../../.env; en Docker no existe y manda "environment".
+  const env = resolve(__dirname, '../../../.env');
+  if (existsSync(env)) process.loadEnvFile(env);
+
+  let config;
+  try {
+    config = cargarConfiguracion(process.env);
+  } catch (e) {
+    if (!(e instanceof ConfiguracionInvalida)) throw e;
+    console.error(e.message);
+    process.exit(1);
+  }
+
   // Todo el sistema trabaja en hora de Lima, sin importar la zona del servidor.
   Settings.defaultZone = ZONA_HORARIA;
 
   const app = await NestFactory.create(AppModule);
-  app.setGlobalPrefix('api');
-  app.enableCors();
+  configurarApp(app);
+  app.use(helmet());
+  app.enableCors({ origin: config.corsOrigenes });
 
-  const config = new DocumentBuilder()
-    .setTitle('VecinoPay API')
-    .setDescription('API de VecinoPay (FIE 7651)')
-    .setVersion('0.1.0')
-    .addBearerAuth()
-    .build();
-  SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, config));
+  if (config.entorno !== 'production') {
+    const documento = new DocumentBuilder()
+      .setTitle('VecinoPay API')
+      .setDescription('API de VecinoPay (FIE 7651)')
+      .setVersion('0.1.0')
+      .addBearerAuth()
+      .build();
+    SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, documento));
+  }
 
-  const puerto = Number(process.env.PORT ?? 3000);
-  await app.listen(puerto);
-  console.log(`VecinoPay API en http://localhost:${puerto}/api (docs en /api/docs)`);
+  await app.listen(config.puerto);
+  console.log(`VecinoPay API en http://localhost:${config.puerto}/api (docs en /api/docs)`);
 }
 
 bootstrap();
