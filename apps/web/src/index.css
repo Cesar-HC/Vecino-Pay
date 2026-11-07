@@ -1,3 +1,45 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* PDF de D06: la impresión del navegador deja solo el documento. */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+  [data-sin-imprimir] {
+    display: none !important;
+  }
+  html,
+  body,
+  #root,
+  .min-h-screen {
+    background: #fff !important;
+    min-height: 0 !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  /* La tabla entra completa en A4: sin recorte ni ancho mínimo. */
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+  table {
+    min-width: 0 !important;
+    width: 100% !important;
+    font-size: 9pt;
+  }
+  th,
+  td {
+    padding: 2px 4px !important;
+    white-space: normal !important;
+  }
+  td.whitespace-nowrap {
+    white-space: nowrap !important;
+  }
+  section {
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+}

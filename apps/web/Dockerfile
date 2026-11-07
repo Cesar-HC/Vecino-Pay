@@ -1,9 +1,11 @@
 # Se construye desde la raíz del monorepo (contexto "."), ver docker-compose.yml.
 FROM node:22-alpine AS build
 WORKDIR /app
-COPY package.json ./
+COPY package.json package-lock.json ./
+COPY packages/finance/package.json packages/finance/
+COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
-RUN npm install --workspace apps/web --include-workspace-root=false
+RUN npm ci --workspace apps/web --include-workspace-root=false
 COPY apps/web apps/web
 RUN npm run build -w apps/web
 

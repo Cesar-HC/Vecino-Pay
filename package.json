@@ -15,7 +15,7 @@
     "build": "npm run build:finance && npm run build -w apps/api && npm run build -w apps/web",
     "dev:api": "npm run build:finance && npm run start:dev -w apps/api",
     "dev:web": "npm run dev -w apps/web",
-    "test": "npm run test -w packages/finance && npm run test:api",
+    "test": "npm run test -w packages/finance && npm run test:api && npm run test:web",
     "lint": "eslint .",
     "format": "prettier --write .",
     "db:up": "docker compose up -d db db-init",
@@ -23,7 +23,8 @@
     "up": "docker compose up -d --build",
     "down": "docker compose down",
     "test:api": "npm run test -w apps/api",
-    "test:integracion": "npm run test:integracion -w apps/api"
+    "test:integracion": "npm run test:integracion -w apps/api",
+    "test:web": "npm run test -w apps/web"
   },
   "devDependencies": {
     "@eslint/js": "^9.14.0",
