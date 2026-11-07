@@ -1,5 +1,6 @@
 // Aislamiento multitienda, cobertura de rutas y auditoría (diseño de fase 3, 13.4 y 13.6).
 import { DiscoveryService, Reflector } from '@nestjs/core';
+import { Dec, interesCompra } from '@vecinopay/finance';
 import { CLAVE_PUBLICO, CLAVE_ROLES } from '../../src/comun/utilidades';
 import { dniUnico, LUIS, MARIA, Prueba } from '../apoyo/app';
 
@@ -215,7 +216,7 @@ describe('aislamiento entre tiendas', () => {
     const rutas = ['/mi/resumen', '/mi/listados', `/mi/listados/${lista[0].id}`, '/mi/cuotas', '/mi/pagos', '/mi/perfil', '/mi/ayuda/ejemplo'];
     for (const ruta of rutas) {
       const texto = JSON.stringify((await p.get(ruta, luis).expect(200)).body);
-      for (const campo of ['"van"', 'montoContado', 'cokTea', 'precioContado']) expect(texto).not.toContain(campo);
+      for (const campo of ['"van"', 'montoContado', 'monto_contado', 'cokTea', 'cok_tea', 'precioContado', 'precio_contado', 'compraId']) expect(texto).not.toContain(campo);
     }
   });
 
@@ -316,6 +317,55 @@ describe('auditoría de cada mutación', () => {
     const yo = (await p.get('/auth/yo', admin).expect(200)).body.usuario;
     const b2 = await p.patch(`/usuarios/${yo.id}/estado`, admin, { estado: 'INACTIVO' }).expect(409);
     expect(b2.body.codigo).toBe('AUTOBAJA');
+  });
+});
+
+describe('cliente con cuotas y compras por listar', () => {
+  const PROHIBIDOS = ['"van"', 'montoContado', 'monto_contado', 'cokTea', 'cok_tea', 'precioContado', 'precio_contado', 'subtotalContado', 'tirDiaria', 'sumaValorActual', 'valorActual', 'compraId'];
+  const activar = async (dni: string, codigo: string) => {
+    const clave = 'Clave#2026';
+    await p.post('/auth/activar', undefined, { dni, codigo, celular: '999888777', password: clave, passwordConfirmacion: clave, aceptaDatos: true }).expect(201);
+    return p.login(dni, clave, 'CLIENTE');
+  };
+
+  it('/mi/* no revela datos de la tienda, con un listado de cuota emitido', async () => {
+    p.reloj.fijar('2026-09-10T10:00:00');
+    const dni = dniUnico();
+    const c = (await p.post('/clientes', a.token, { ...MARIA(dni), diaCorte: 17, diaPago: 22 }).expect(201)).body;
+    const token = await activar(dni, c.codigoActivacion);
+    await p.post('/compras', a.token, { clienteId: c.id, modalidad: 'CUOTAS', numCuotas: 3, items: [{ productoId: a.productos.P012, cantidad: '1' }] }).expect(201);
+    p.reloj.fijar('2026-10-17T17:00:01');
+    await p.post('/cortes/ejecutar', admin).expect(200);
+    const [l] = (await p.get('/mi/listados', token).expect(200)).body.items;
+    const detalle = (await p.get(`/mi/listados/${l.id}`, token).expect(200)).body;
+    expect(detalle.items[0].tipo).toBe('CUOTA');
+    expect(detalle.items[0].detalle.length).toBeGreaterThan(0);
+    const delDueno = (await p.get(`/listados/${l.id}`, a.token).expect(200)).body;
+    expect(delDueno.items[0].compraId).toBeTruthy();
+    const cuotas = (await p.get('/mi/cuotas', token).expect(200)).body;
+    expect(cuotas.compras).toHaveLength(1);
+    for (const ruta of ['/mi/resumen', '/mi/listados', `/mi/listados/${l.id}`, '/mi/cuotas', '/mi/pagos', '/mi/perfil', '/mi/ayuda/ejemplo']) {
+      const texto = JSON.stringify((await p.get(ruta, token).expect(200)).body);
+      for (const campo of PROHIBIDOS) expect(texto).not.toContain(campo);
+    }
+    p.reloj.fijar('2026-09-22T10:00:00');
+  });
+
+  it('C03 proyecta una compra a fin de mes con su interés; sin deuda no hay próximo pago; lo vencido sin listar no se muestra', async () => {
+    p.reloj.fijar('2026-09-12T10:00:00');
+    const dni = dniUnico();
+    const c = (await p.post('/clientes', a.token, { ...LUIS(dni), diaCorte: 18, diaPago: 19 }).expect(201)).body;
+    const token = await activar(dni, c.codigoActivacion);
+    expect((await p.get('/mi/resumen', token).expect(200)).body.proximoPago).toBeNull();
+
+    await p.post('/compras', a.token, { clienteId: c.id, modalidad: 'FIN_MES', items: [{ productoId: a.productos.P001, cantidad: '1' }] }).expect(201);
+    const interes = interesCompra('9.00', '0.001032653810255', 7);
+    const r = (await p.get('/mi/resumen', token).expect(200)).body.proximoPago;
+    expect(r).toMatchObject({ capital: '9.00', interes: interes.toFixed(2), total: new Dec('9.00').plus(interes).toFixed(2), mora: '0.00', fecha: '2026-09-19', diasRestantes: 7, proyectado: true });
+
+    p.reloj.fijar('2026-09-25T10:00:00'); // Sin corte de por medio, la fecha proyectada ya pasó.
+    expect((await p.get('/mi/resumen', token).expect(200)).body.proximoPago).toBeNull();
+    p.reloj.fijar('2026-09-22T10:00:00');
   });
 });
 

@@ -110,7 +110,7 @@ Todas las rutas están en Swagger (http://localhost:3000/api/docs), con su botó
 | 0 | Monorepo, docker-compose, README, zona America/Lima | Aprobada |
 | 1 | Esquema SQL de 11 tablas y semillas (juegos 1 y 2) | Aprobada |
 | 2 | Motor financiero con pruebas al céntimo | Aprobada |
-| 3 | API: auth, roles, multitienda, compras, corte, listados, pagos, cronogramas, auditoría | Auditada (CONFORME), falta la aprobación de Adrián |
+| 3 | API: auth, roles, multitienda, compras, corte, listados, pagos, cronogramas, auditoría | Aprobada |
 | 4 | Web del administrador y del dueño (A01–A05, D01–D08) | Pendiente |
 | 5 | Vista móvil del cliente (C01–C09) | Pendiente |
 | 6 | Pruebas E2E y guía para la demo | Pendiente |

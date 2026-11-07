@@ -122,7 +122,7 @@ export class MiService {
         .filter((q) => q.estado === 'PENDIENTE' && q.listado_item.length === 0)
         .map((q) => ({ fecha: deFechaBd(q.fecha_vencimiento), capital: aDecBd(q.amortizacion), interes: aDecBd(q.interes) }));
     });
-    const fecha = filas.map((f) => f.fecha).sort()[0];
+    const fecha = filas.map((f) => f.fecha).filter((f) => f >= hoy).sort()[0];
     if (!fecha) return null;
     const delDia = filas.filter((f) => f.fecha === fecha);
     const capital = delDia.reduce<Dec>((s, f) => s.plus(f.capital), new Dec(0));

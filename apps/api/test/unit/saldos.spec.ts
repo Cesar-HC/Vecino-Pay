@@ -76,6 +76,23 @@ describe('deuda a la fecha (6.3m, decisión de Adrián)', () => {
     expect(texto(calcularDeuda({ listados: [listadoLuis], comprasSinListar: [d('21.30')], cuotasSinListar: [], tedMora: tedMoraLuis, hoy: '2026-10-01' }))).toBe('250.02');
   });
 
+  const cuota2 = { total: d('93.25'), totalCapital: d('86.85'), fechaPago: '2026-11-26' };
+
+  it('María al 30/11, con dos listados vencidos: cada uno suma T y su mora, sin perder el anterior', () => {
+    const deuda = calcularDeuda({ listados: [cuota1, cuota2], comprasSinListar: [], cuotasSinListar: cuotas.slice(2), tedMora: tedMoraMaria, hoy: '2026-11-30' });
+    expect(texto(deuda)).toBe('277.76'); // 93.25 + 1.03 + 93.25 + 0.12 + 90.11
+  });
+
+  it('un listado vencido y otro no vencido: T y mora del primero, solo capital del segundo', () => {
+    const deuda = calcularDeuda({ listados: [cuota1, cuota2], comprasSinListar: [], cuotasSinListar: cuotas.slice(2), tedMora: tedMoraMaria, hoy: '2026-11-20' });
+    expect(texto(deuda)).toBe('270.95'); // 93.25 + 0.74 + 86.85 + 90.11
+  });
+
+  it('el orden de los listados no cambia el resultado', () => {
+    const deuda = calcularDeuda({ listados: [cuota2, cuota1], comprasSinListar: [], cuotasSinListar: cuotas.slice(2), tedMora: tedMoraMaria, hoy: '2026-11-30' });
+    expect(texto(deuda)).toBe('277.76');
+  });
+
   it('sin nada pendiente, 0.00', () => {
     expect(texto(calcularDeuda({ listados: [], comprasSinListar: [], cuotasSinListar: [], tedMora: tedMoraLuis, hoy: '2026-10-01' }))).toBe('0.00');
   });

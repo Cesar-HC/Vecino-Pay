@@ -3,7 +3,6 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { aDec, Dec, capitalPorCobrar, fechaOperativaLocal, interesCompra, partesLima, usoLimite, diasEntre } from '@vecinopay/finance';
 import { BdService } from '../bd/bd.service';
 import { aDecBd, deFechaBd, dePartesBd } from '../bd/conversiones';
-import { comprasParaSu } from '../clientes/clientes';
 import { calcularSu } from '../clientes/saldos';
 import { aSoles, aTasa, ContextoDueno, Ctx, Roles } from '../comun/utilidades';
 import { estadoEfectivo } from '../listados/listados';
@@ -49,15 +48,22 @@ export class NegocioService {
       const ls = listados.filter((l) => ids.has(l.cliente_id));
       const cs = compras.filter((x) => ids.has(x.cliente_id));
 
-      const usos = await Promise.all(
-        deMoneda.map(async (x) => {
-          const su = calcularSu(await comprasParaSu(bd, x.id));
-          return { x, su };
-        }),
-      );
+      const usos = deMoneda.map((x) => ({
+        x,
+        su: calcularSu(
+          cs
+            .filter((k) => k.cliente_id === x.id)
+            .map((k) => ({
+              modalidad: k.modalidad,
+              estado: k.estado,
+              montoLista: aDecBd(k.monto_lista),
+              cuotas: k.cuota.map((q) => ({ numero: q.numero, estado: q.estado, saldoFinal: aDecBd(q.saldo_final) })),
+            })),
+        ),
+      }));
 
       const noPagados = ls.filter((l) => l.estado !== 'PAGADO');
-            const cortes = ls.map((l) => deFechaBd(l.fecha_corte)).filter((f) => f <= hoy).sort();
+      const cortes = ls.map((l) => deFechaBd(l.fecha_corte)).filter((f) => f <= hoy).sort();
       const ultimoCorte = cortes[cortes.length - 1];
       const interesesDelCiclo = ls
         .filter((l) => deFechaBd(l.fecha_corte) === ultimoCorte)

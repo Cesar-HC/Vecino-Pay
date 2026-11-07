@@ -114,7 +114,7 @@ export async function detalleListado(bd: Ambito, id: bigint, clienteId: bigint |
         orden: i.orden,
         tipo: i.tipo,
         ticket: compra?.ticket ?? null,
-        compraId: aId(compra?.id),
+        compraId: clienteId === undefined ? aId(compra?.id) : undefined,
         // D06: lo que se llevó el cliente. Sin precio contado: esta respuesta también la ve el cliente.
         detalle: (compra?.compra_detalle ?? []).map((d) => ({
           codigo: d.producto.codigo,
@@ -291,7 +291,7 @@ export class ListadosService {
           usuarioId: c.usuarioId,
           accion: 'RECHAZO',
           tabla: 'pago',
-          detalle: `Pago de ${conSimbolo(l.cliente.moneda, d.montoPagado)} del listado ${l.numero} rechazado. ${r.mensaje}`,
+          detalle: `Pago de ${conSimbolo(l.cliente.moneda, d.montoPagado)} del listado ${l.numero}. ${r.mensaje}`,
         });
         return new ErrorNegocio(422, 'PAGO_NO_EXACTO', r.mensaje, { totalALaFecha: aSoles(r.totalALaFecha) });
       }

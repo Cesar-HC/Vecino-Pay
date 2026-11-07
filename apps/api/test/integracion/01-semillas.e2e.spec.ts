@@ -103,7 +103,8 @@ describe('estado sembrado', () => {
     expect(luis.proximoPago).toMatchObject({ mora: '0.06', totalALaFecha: '228.48', diasRestantes: -1 });
     // D01 tras el vencimiento: el próximo cobro ya es el proyectado.
     const d01 = (await p.get('/negocio/resumen', await p.rosa()).expect(200)).body.porMoneda.PEN;
-    expect(d01.cobroProximo.fecha).toBe('2026-10-26');
+    const interesProyectado = interesCompra('21.30', '0.001032653810255', diasEntre('2026-09-21', '2026-10-26'));
+    expect(d01.cobroProximo).toEqual({ fecha: '2026-10-26', total: new Dec('21.30').plus(interesProyectado).plus('93.25').toFixed(2) });
     p.reloj.fijar('2026-09-22T12:00:00');
     expect(c.explicacion).toMatchObject({ g: 11, interesGracia: '3.27' });
   });

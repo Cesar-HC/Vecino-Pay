@@ -489,7 +489,7 @@ Un 400 por DTO inválido no se audita: la operación nunca empezó.
 
 | Ruta | Entrada | Salida | Errores | RF / pantalla |
 |---|---|---|---|---|
-| `GET /negocio/resumen` | | Sección 9.6 | | RF10 / D01 |
+| `GET /negocio/resumen` | | Sección 9.6, más `cokTea` de la tienda | | RF10 / D01 |
 | `GET /productos` | `texto?, estado?, modalidad?` | Productos | | RF03 / D02, D04 |
 | `POST /productos` | `codigo, nombre, marca?, descripcion?, unidad, proveedor?, imagenUrl?, precioContado, precioLista, permiteFinMes, permiteCuotas` | 201 producto | 400 `PRECIO_LISTA`, `PRECIO_CONTADO`; 409 `CODIGO_DUPLICADO` | RF03 / D02 |
 | `PATCH /productos/:id` | Los mismos, parciales. Sin `tiendaId` (fases 1-2, 9.1.8) | Producto | 404, 400 | RF03 / D02 |
@@ -497,7 +497,7 @@ Un 400 por DTO inválido no se audita: la operación nunca empezó.
 | `GET /clientes` | `texto?, estado?` | `items[{..., su, disponible, usoPorcentaje}]` | | RF04 / D03, D04 |
 | `POST /clientes/calcular-tasas` | `tasa{tipo, valor, plazo, capitalizacion?}` | `ted, tem, tea` | 400 `TASA_*` | RF04 / D03 |
 | `POST /clientes` | DTO de 9.4.1 | 201 cliente con `codigoActivacion` | 400; 409 `DNI_DUPLICADO` | RF04, RF12 / D03 |
-| `GET /clientes/:id` | | Cliente con `su, disponible, deudaALaFecha` y código si sigue pendiente | 404 | RF04 / D03, D04 |
+| `GET /clientes/:id` | | Cliente con `su, disponible, deudaALaFecha` (6.3m: T y mora de los listados vencidos, más capital de lo no vencido y de lo no listado, sin interés; ver `docs/decisiones.md`) y código si sigue pendiente | 404 | RF04 / D03, D04 |
 | `PATCH /clientes/:id` | Campos del DTO, parciales | Cliente | 404, 400, 409 `CONDICIONES_CON_DEUDA` | RF04 / D03 |
 | `PATCH /clientes/:id/estado` | `estado` | Cliente | 404 | RF04 / D03 |
 | `POST /compras/simular` | DTO de 9.4.2 | Sección 9.4.3. No guarda ni audita | 400, 404 | RF05, RF06, RF09 / D04 |
@@ -508,7 +508,7 @@ Un 400 por DTO inválido no se audita: la operación nunca empezó.
 | `GET /listados` | `clienteId?, estado?, fechaCorte?` | Listados con `estadoEfectivo` | | RF08 / D06, D07 |
 | `GET /listados/:id` | | Sección 9.4.5 | 404 | RF08 / D06 |
 | `GET /listados/:id/valor-hoy` | `fecha?` (por defecto hoy, no posterior a la fecha de pago) | `td, te, d, descuento, neto` | 404, 400 | 6.3l, T17 / D06 |
-| `GET /listados/:id/liquidacion` | | `fechaOperativaPago, diasMora, mora, totalALaFecha, imputacion{mora, interes, capital}, disponibleDespues` | 404, 409 | RF07 / D07 |
+| `GET /listados/:id/liquidacion` | | `fechaReal, horaReal, fechaOperativaPago, diasMora, mora, totalALaFecha, imputacion{mora, interes, capital}, disponibleDespues` | 404, 409 | RF07 / D07 |
 | `POST /listados/:id/pago` | `montoPagado, medioPago, numeroOperacion?` | 201 `{ pago, imputacion, listado, disponible }` | 404; 409 `LISTADO_YA_PAGADO`; **422 `PAGO_NO_EXACTO`** | RF07 / D07 |
 
 `estadoEfectivo`: `VENCIDO` si no está pagado y `fecha_pago` es anterior a la fecha operativa actual. Se calcula al leer, porque con reloj fijo el trabajo diario no corre.
@@ -549,11 +549,13 @@ No hay campo de fecha, hora, ticket ni monto (6.1.1).
 
 ```ts
 {
+  lineas: [{ productoId, codigo, nombre, cantidad, precioLista, precioContado, subtotal, subtotalContado }],
   montoLista, montoContado, fechaOperativa, fechaCorte, fechaPago,
   limite: { aceptada: boolean; disponible: string; mensaje?: string },
   finMes?: { dias, interes, total },
   cuotas?: { g, capitalCapitalizado, interesGracia, cuotaFija, ultimaCuota, primeraCuota,
-             tcea, tceaPorcentaje, van, filas: FilaCronogramaDto[] }
+             tcea, tceaPorcentaje, van, tirDiaria, cokTea, sumaValorActual,
+             filas: FilaCronogramaDto[] } // Cada fila trae además t y valorActual
 }
 ```
 
@@ -567,7 +569,7 @@ El simulador devuelve el resultado de `evaluarLimite` como dato: es lo que alime
   resumen: { montoCredito, interesGracia, interesCuotas, interesesTotales, cuotaFija, tcea, tceaPorcentaje, tirDiaria, van },
   filas: [{ numero, vence, diasPeriodo, saldoInicial, interes, amortizacion, monto, saldoFinal, estado }],
   totales: { interes, amortizacion, monto },
-  flujoCaja: { filas: [{ momento, t, flujo, valorActual }], sumaValorActual, van, cokVigenteCoincide }
+  flujoCaja: { cokTea, filas: [{ momento, t, flujo, valorActual }], sumaValorActual, van, cokVigenteCoincide }
 }
 ```
 
@@ -581,8 +583,9 @@ El simulador devuelve el resultado de `evaluarLimite` como dato: es lo que alime
 {
   id, numero, cliente, fechaCorte, horaCorte: '17:00:00', fechaPago, tasa, estado, estadoEfectivo,
   totalCapital, totalInteres, totalMora, total, fechaPagoReal?, diasMora?,
-  items: [{ orden, tipo: 'COMPRA'|'CUOTA'|'MORA', ticket?, cuotaNumero?, fechaHoraRegistro?,
-            fecha, posteriorAlCorte, detalle?, dias, capital, interes, mora, total }],
+  items: [{ orden, tipo: 'COMPRA'|'CUOTA'|'MORA', ticket?, compraId?, cuotaNumero?, fechaHoraRegistro?,
+            fecha, posteriorAlCorte, dias, capital, interes, mora, total,
+            detalle: [{ codigo, nombre, unidad, cantidad, precioLista, subtotal }] }], // compraId solo para el dueño
   comprasPosteriores: [{ ticket, fechaHora, fechaOperativa, monto, fechaPago }],
   moraALaFecha?: { diasMora, mora, totalALaFecha }
 }
@@ -598,7 +601,7 @@ Toman `clienteId` del contexto. No reciben id de cliente. **Nunca devuelven `van
 
 | Ruta | Salida | RF / pantalla |
 |---|---|---|
-| `GET /mi/resumen` | `cliente{nombre, numeroCuenta}, tienda{nombreComercial}, proximoPago{total, capital, interes, fecha, diasRestantes}?, credito{limite, usado, disponible, usoPorcentaje}, comprasPorSemana[], comprasDelCiclo, tasa` | RF10 / C03, C04 |
+| `GET /mi/resumen` | `cliente{nombre, numeroCuenta}, tienda{nombreComercial}, proximoPago{total, capital, interes, mora, totalALaFecha, fecha, diasRestantes, proyectado}?, credito{limite, usado, disponible, usoPorcentaje}, comprasPorSemana[], comprasDelCiclo, tasa` | RF10 / C03, C04. Sin listado emitido, `proximoPago` proyecta lo no listado con fecha no anterior a hoy; si no hay, es null |
 | `GET /mi/listados` | Listados propios | RF08 / C05 |
 | `GET /mi/listados/:id` | Igual que 9.4.5. 404 si no es suyo | RF08 / C05 |
 | `GET /mi/cuotas` | `compras[{ticket, cuotaFija, tcea, tceaPorcentaje, proximaCuota, filas[{numero, vence, monto, estado}], explicacion{fechaCompra, fechaPago, g, interesGracia, montoLista, capitalCapitalizado}}]` | RF05, RF09 / C06 |
@@ -613,7 +616,7 @@ Toman `clienteId` del contexto. No reciben id de cliente. **Nunca devuelven `van
 | Campo | Definición | Al 22/09/2026 |
 |---|---|---|
 | `capitalPorCobrar` | Σ SU de sus clientes (6.3m) | 502.72 |
-| `cobroProximo` | `{fecha, total}` de la menor `fecha_pago` no anterior a la fecha operativa actual, entre listados no pagados | 26/09, 228.42 |
+| `cobroProximo` | `{fecha, total}` de la menor fecha de `cobrosPorFecha` no anterior a la fecha operativa actual: listados no pagados más lo aún no listado, proyectado | 26/09, 228.42 |
 | `interesesDelCiclo` | Σ `total_interes` de los listados con la `fecha_corte` más reciente hasta hoy | 4.80 |
 | `carteraEnMora` | Σ `total` de los listados con `estadoEfectivo = VENCIDO` | 0.00 |
 | `vanAcumulado` | Σ `van` de compras no anuladas (T27) | 20.01 |

@@ -325,5 +325,9 @@ describe('Juego 2 (T18 a T20, T22)', () => {
     const c3 = (await p.get(`/clientes/${maria}`, dueno)).body;
     expect([c3.su, c3.disponible]).toEqual(['0.00', '600.00']);
     expect((await p.get(`/compras/${compraId}`, dueno)).body.estado).toBe('PAGADA');
+    // D01 calcula SU con las compras ya cargadas: una PAGADA aporta 0, igual que en D03.
+    const d01 = (await p.get('/negocio/resumen', dueno).expect(200)).body.porMoneda.PEN;
+    const d03 = (await p.get('/clientes?tamano=200', dueno).expect(200)).body.items as { su: string }[];
+    expect(d01.usoLimite.map((u: { su: string }) => u.su).sort()).toEqual(d03.map((c) => c.su).sort());
   });
 });
