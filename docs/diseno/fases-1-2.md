@@ -223,7 +223,7 @@ Solo T-000284 es `CUOTAS`, con `num_cuotas` 3, `dias_gracia` 11, `capital_capita
 
 María no tiene listado: su primera cuota entra al corte del 20/10. T-000301 tampoco está listada. `pago` queda vacía.
 
-### 4.7 Auditoría (10 filas, `tienda_id` Doña Rosa)
+### 4.7 Auditoría (10 filas de Doña Rosa; las tiendas de demostración de la fase 4 agregan otras 21)
 
 | `fecha_hora` | Usuario | Acción | Tabla | `registro_id` | Detalle |
 |---|---|---|---|---|---|

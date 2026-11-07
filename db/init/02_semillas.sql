@@ -1,5 +1,6 @@
 -- VecinoPay: semillas de los juegos de prueba 1 y 2 (informe, sección 6.4), estado al 22/09/2026.
 -- Se cargan una sola vez: si la tienda ya existe, el lote termina sin cambiar nada.
+-- Excepciones: dos lotes aparte al final, el alta de la tienda y las tiendas de demostración, también llegan a una BD ya cargada.
 -- Volver a cargarlas (por ejemplo, para repetir la activación de C02) exige "docker compose down -v".
 -- FICTICIO (demo): dato que no sale del informe, inventado para que la demo funcione.
 -- Las tasas y los indicadores salen del motor financiero; test/semillas.test.ts los compara con él.
@@ -174,4 +175,97 @@ IF EXISTS (SELECT 1 FROM dbo.tienda WHERE ruc = '10412587369')
   FROM dbo.tienda t
   JOIN dbo.usuario u ON u.username = 'admin@vecinopay.test'
   WHERE t.ruc = '10412587369';
+GO
+
+-- Tiendas de demostración para A02 a A05 (decisión de Adrián). Todo este lote es FICTICIO (demo).
+-- No traen clientes ni compras: los juegos 1 y 2 siguen solo en Minimarket Doña Rosa y sus cifras no cambian.
+-- Lote aparte para que también llegue a una BD ya cargada; una sola transacción, así que no queda a medias.
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+IF EXISTS (SELECT 1 FROM dbo.tienda WHERE ruc = '20999000001')
+BEGIN
+  PRINT 'Tiendas de demostración ya cargadas: no se cambia nada.';
+  RETURN;
+END;
+
+BEGIN TRANSACTION;
+
+DECLARE @clave VARCHAR(255) = '$2a$10$nioawKq0olyh6ZtYbxzYJ.TsTo/Fb78m3//L6me7ev7l1g4uG/woS'; -- Tienda#2026
+DECLARE @id_admin BIGINT = (SELECT id FROM dbo.usuario WHERE username = 'admin@vecinopay.test');
+DECLARE @id_dona BIGINT = (SELECT id FROM dbo.usuario WHERE username = 'rosa@vecinopay.test');
+DECLARE @id_cliente BIGINT = (SELECT id FROM dbo.usuario WHERE username = '45872316');
+DECLARE @dona_rosa BIGINT = (SELECT id FROM dbo.tienda WHERE ruc = '10412587369');
+DECLARE @elena BIGINT, @carlos BIGINT, @ana BIGINT, @jorge BIGINT;
+DECLARE @pelu BIGINT, @bodega BIGINT, @pan BIGINT, @polleria BIGINT, @libreria BIGINT;
+DECLARE @pan01 BIGINT, @pan02 BIGINT;
+
+INSERT INTO dbo.usuario (perfil, username, password_hash, nombres, estado)
+VALUES ('DUENO', 'elena.demo@vecinopay.test', @clave, N'Elena Paredes', 'INACTIVO');
+SET @elena = SCOPE_IDENTITY();
+INSERT INTO dbo.usuario (perfil, username, password_hash, nombres)
+VALUES ('DUENO', 'carlos.demo@vecinopay.test', @clave, N'Carlos Rojas');
+SET @carlos = SCOPE_IDENTITY();
+INSERT INTO dbo.usuario (perfil, username, password_hash, nombres)
+VALUES ('DUENO', 'ana.demo@vecinopay.test', @clave, N'Ana Torres');
+SET @ana = SCOPE_IDENTITY();
+INSERT INTO dbo.usuario (perfil, username, password_hash, nombres)
+VALUES ('DUENO', 'jorge.demo@vecinopay.test', @clave, N'Jorge Salas');
+SET @jorge = SCOPE_IDENTITY();
+
+-- Peluquería Estilo: A03 la muestra como BAJA; se guarda INACTIVO. Carlos tiene 2 tiendas, para probar el selector.
+INSERT INTO dbo.tienda (duenio_id, ruc, razon_social, nombre_comercial, giro, direccion, telefono, cok_tea, estado)
+VALUES (@elena, '20999000001', N'Salón Estilo E.I.R.L.', N'Peluquería Estilo', N'Peluquería', N'Jr. Las Tijeras 210, Lima', '014000222', 0.200000000, 'INACTIVO');
+SET @pelu = SCOPE_IDENTITY();
+INSERT INTO dbo.tienda (duenio_id, ruc, razon_social, nombre_comercial, giro, direccion, telefono, cok_tea)
+VALUES (@carlos, '20999000002', N'Bodega El Vecino S.A.C.', N'Bodega El Vecino', N'Bodega', N'Av. Central 340, Lima', '014000333', 0.200000000);
+SET @bodega = SCOPE_IDENTITY();
+INSERT INTO dbo.tienda (duenio_id, ruc, razon_social, nombre_comercial, giro, direccion, telefono, cok_tea)
+VALUES (@ana, '20999000003', N'Panificadora San Martín S.A.C.', N'Panadería San Martín', N'Panadería', N'Jr. San Martín 55, Lima', '014000444', 0.200000000);
+SET @pan = SCOPE_IDENTITY();
+INSERT INTO dbo.tienda (duenio_id, ruc, razon_social, nombre_comercial, giro, direccion, telefono, cok_tea)
+VALUES (@carlos, '20999000004', N'El Buen Sabor E.I.R.L.', N'Pollería El Buen Sabor', N'Pollería', N'Av. Los Sauces 780, Lima', '014000555', 0.200000000);
+SET @polleria = SCOPE_IDENTITY();
+INSERT INTO dbo.tienda (duenio_id, ruc, razon_social, nombre_comercial, giro, direccion, telefono, cok_tea)
+VALUES (@jorge, '20999000005', N'Librería El Estudiante S.A.C.', N'Librería El Estudiante', N'Librería', N'Jr. Los Libros 12, Lima', '014000666', 0.200000000);
+SET @libreria = SCOPE_IDENTITY();
+
+-- Productos para que A05 muestre un cambio de precio y una baja. Fuera de Doña Rosa: su catálogo no cambia.
+INSERT INTO dbo.producto (tienda_id, codigo, nombre, unidad, precio_contado, precio_lista, permite_fin_mes, permite_cuotas)
+VALUES (@pan, 'PAN01', N'Pan francés', 'UND', 0.50, 0.60, 1, 0);
+SET @pan01 = SCOPE_IDENTITY();
+INSERT INTO dbo.producto (tienda_id, codigo, nombre, unidad, precio_contado, precio_lista, permite_fin_mes, permite_cuotas, estado)
+VALUES (@pan, 'PAN02', N'Keke casero', 'UND', 12.00, 13.00, 1, 0, 'INACTIVO');
+SET @pan02 = SCOPE_IDENTITY();
+INSERT INTO dbo.producto (tienda_id, codigo, nombre, unidad, precio_contado, precio_lista, permite_fin_mes, permite_cuotas)
+VALUES (@bodega, 'BOD01', N'Gaseosa 1.5 L', 'UND', 6.00, 6.50, 1, 0),
+       (@polleria, 'POL01', N'Pollo a la brasa, 1/4', 'UND', 14.00, 15.00, 1, 0);
+
+-- Auditoría: altas en meses distintos (agosto queda para Doña Rosa) y lo que A05 debe mostrar.
+INSERT INTO dbo.auditoria (usuario_id, tienda_id, fecha_hora, accion, tabla, registro_id, detalle)
+VALUES
+  (@id_admin, NULL,       '2026-04-08T09:00:00', 'ALTA',   'usuario',  @elena,    N'Alta del usuario elena.demo@vecinopay.test.'),
+  (@id_admin, @pelu,      '2026-04-08T09:00:00', 'ALTA',   'tienda',   @pelu,     N'Alta de la tienda Peluquería Estilo.'),
+  (@id_admin, NULL,       '2026-05-12T10:15:00', 'ALTA',   'usuario',  @carlos,   N'Alta del usuario carlos.demo@vecinopay.test.'),
+  (@id_admin, @bodega,    '2026-05-12T10:15:00', 'ALTA',   'tienda',   @bodega,   N'Alta de la tienda Bodega El Vecino.'),
+  (@id_admin, NULL,       '2026-06-03T11:00:00', 'ALTA',   'usuario',  @ana,      N'Alta del usuario ana.demo@vecinopay.test.'),
+  (@id_admin, @pan,       '2026-06-03T11:00:00', 'ALTA',   'tienda',   @pan,      N'Alta de la tienda Panadería San Martín.'),
+  (@id_admin, @polleria,  '2026-07-15T16:20:00', 'ALTA',   'tienda',   @polleria, N'Alta de la tienda Pollería El Buen Sabor.'),
+  (@id_admin, NULL,       '2026-09-03T09:40:00', 'ALTA',   'usuario',  @jorge,    N'Alta del usuario jorge.demo@vecinopay.test.'),
+  (@id_admin, @libreria,  '2026-09-03T09:40:00', 'ALTA',   'tienda',   @libreria, N'Alta de la tienda Librería El Estudiante.'),
+  (@elena,    @pelu,      '2026-09-10T18:00:00', 'LOGIN',  'usuario',  @elena,    N'Inicio de sesión como DUENO.'),
+  (@ana,      @pan,       '2026-09-16T08:30:00', 'CAMBIO', 'producto', @pan01,    N'Cambio de precio del producto PAN01: lista de S/ 0.50 a S/ 0.60.'),
+  (@ana,      @pan,       '2026-09-16T08:35:00', 'BAJA',   'producto', @pan02,    N'Baja del producto PAN02.'),
+  (@id_admin, @pelu,      '2026-09-17T10:30:00', 'BAJA',   'usuario',  @elena,    N'Baja del usuario elena.demo@vecinopay.test: se quedó sin tiendas activas.'),
+  (@id_admin, @pelu,      '2026-09-17T10:30:00', 'BAJA',   'tienda',   @pelu,     N'Baja de la tienda Peluquería Estilo.'),
+  (@id_admin, NULL,       '2026-09-21T08:55:00', 'LOGIN',  'usuario',  @id_admin, N'Inicio de sesión como ADMIN_SISTEMA.'),
+  (@id_dona,  @dona_rosa, '2026-09-21T09:05:00', 'LOGIN',  'usuario',  @id_dona,  N'Inicio de sesión como DUENO.'),
+  (@id_cliente, @dona_rosa, '2026-09-21T19:10:00', 'LOGIN', 'usuario', @id_cliente, N'Inicio de sesión como CLIENTE.'),
+  (@ana,      @pan,       '2026-09-22T08:00:00', 'LOGIN',  'usuario',  @ana,      N'Inicio de sesión como DUENO.'),
+  (@carlos,   @bodega,    '2026-09-22T08:20:00', 'LOGIN',  'usuario',  @carlos,   N'Inicio de sesión como DUENO.'),
+  (@id_dona,  @dona_rosa, '2026-09-22T09:00:00', 'LOGIN',  'usuario',  @id_dona,  N'Inicio de sesión como DUENO.'),
+  (@jorge,    @libreria,  '2026-09-22T09:30:00', 'LOGIN',  'usuario',  @jorge,    N'Inicio de sesión como DUENO.');
+
+COMMIT TRANSACTION;
+PRINT 'Tiendas de demostración cargadas.';
 GO

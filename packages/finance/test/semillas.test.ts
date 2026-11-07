@@ -28,6 +28,17 @@ const ted = (t: Parameters<typeof tasaEfectivaDiaria>[0]) =>
   cuantizarTasa(tasaEfectivaDiaria(t)).toFixed(15);
 const tedMaria = ted({ tipo: 'NOMINAL', valor: '0.42', plazo: 360, capitalizacion: 30 });
 
+describe('Tiendas de demostración', () => {
+  it('su lote no agrega nada de operación: los juegos 1 y 2 siguen solo en Doña Rosa', () => {
+    const inicio = sql.indexOf('-- Tiendas de demostración para A02 a A05');
+    expect(inicio).toBeGreaterThan(0);
+    const lote = sql.slice(inicio);
+    for (const tabla of ['cliente', 'compra', 'compra_detalle', 'cuota', 'listado_pago', 'listado_item', 'pago']) {
+      expect(lote).not.toContain(`INSERT INTO dbo.${tabla} `);
+    }
+  });
+});
+
 describe('Las semillas coinciden con el motor', () => {
   it('TED guardadas', () => {
     expect(literal('ted_luis')).toBe(ted({ tipo: 'EFECTIVA', valor: '0.45', plazo: 360 }));
