@@ -1,49 +1,99 @@
-import { useEffect, useState } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { lazy, Suspense } from 'react';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { ErrorApi } from './api/cliente';
+import A01Login from './pantallas/admin/A01Login';
+import A03Tiendas from './pantallas/admin/A03Tiendas';
+import A04Usuarios from './pantallas/admin/A04Usuarios';
+import A05Auditoria from './pantallas/admin/A05Auditoria';
+import D02Productos from './pantallas/dueno/D02Productos';
+import { D03Ficha, D03Lista } from './pantallas/dueno/D03Clientes';
+import D04NuevaCompra from './pantallas/dueno/D04NuevaCompra';
+import { D05Detalle, D05Lista } from './pantallas/dueno/D05Cronograma';
+import { D06Detalle, D06Lista } from './pantallas/dueno/D06Listado';
+import { D07Lista, D07Pago } from './pantallas/dueno/D07Pago';
+import D08Ayuda from './pantallas/dueno/D08Ayuda';
+import { Plantilla } from './plantillas/Plantilla';
+import { Guarda, inicioDe, ProveedorSesion, useSesion } from './sesion/Sesion';
+import { Cargando, Vacio } from './ui/base';
+import { FronteraError } from './ui/Fronteras';
 
-interface Salud {
-  estado: string;
-  zonaHoraria: string;
-  fechaLima: string;
-  horaLima: string;
-  horaCorte: string;
-  fechaOperativa: string;
+// Recharts pesa: solo se carga en las pantallas con gráficos.
+const A02Resumen = lazy(() => import('./pantallas/admin/A02Resumen'));
+const D01Resumen = lazy(() => import('./pantallas/dueno/D01Resumen'));
+
+const consultas = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (n, e) => !(e instanceof ErrorApi && e.estado >= 400 && e.estado < 500) && n < 2,
+      refetchOnWindowFocus: true,
+    },
+  },
+});
+
+function Inicio() {
+  const { sesion, cargando } = useSesion();
+  if (cargando) return <Cargando />;
+  return <Navigate to={sesion ? inicioDe(sesion.usuario.perfil) : '/login'} replace />;
 }
 
 export default function App() {
-  const [salud, setSalud] = useState<Salud | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch('/api/salud')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then(setSalud)
-      .catch((e: Error) => setError(e.message));
-  }, []);
-
   return (
-    <main className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-      <section className="w-full max-w-md rounded-2xl bg-white shadow p-6">
-        <h1 className="text-2xl font-bold text-vecino-oscuro">VecinoPay</h1>
-        <p className="text-sm text-gray-500 mb-4">Fase 0: el sistema está levantado</p>
-        {error && <p className="text-red-600">No responde la API: {error}</p>}
-        {!salud && !error && <p className="text-gray-500">Consultando la API…</p>}
-        {salud && (
-          <dl className="grid grid-cols-2 gap-y-2 text-sm">
-            <dt className="text-gray-500">Estado de la API</dt>
-            <dd className="font-medium text-vecino">{salud.estado}</dd>
-            <dt className="text-gray-500">Zona horaria</dt>
-            <dd>{salud.zonaHoraria}</dd>
-            <dt className="text-gray-500">Hora en Lima</dt>
-            <dd>
-              {salud.fechaLima} {salud.horaLima}
-            </dd>
-            <dt className="text-gray-500">Hora de corte</dt>
-            <dd>{salud.horaCorte}</dd>
-            <dt className="text-gray-500">Fecha operativa</dt>
-            <dd className="font-medium">{salud.fechaOperativa}</dd>
-          </dl>
-        )}
-      </section>
-    </main>
+    <QueryClientProvider client={consultas}>
+      <BrowserRouter>
+        <ProveedorSesion>
+          <FronteraError>
+            <Suspense fallback={<Cargando />}>
+              <Routes>
+                <Route path="/" element={<Inicio />} />
+                <Route path="/login" element={<A01Login />} />
+                <Route
+                  path="/admin"
+                  element={
+                    <Guarda perfil="ADMIN_SISTEMA">
+                      <Plantilla tipo="admin" />
+                    </Guarda>
+                  }
+                >
+                  <Route index element={<A02Resumen />} />
+                  <Route path="tiendas" element={<A03Tiendas />} />
+                  <Route path="usuarios" element={<A04Usuarios />} />
+                  <Route path="auditoria" element={<A05Auditoria />} />
+                </Route>
+                <Route
+                  path="/dueno"
+                  element={
+                    <Guarda perfil="DUENO">
+                      <Plantilla tipo="dueno" />
+                    </Guarda>
+                  }
+                >
+                  <Route index element={<D01Resumen />} />
+                  <Route path="compras/nueva" element={<D04NuevaCompra />} />
+                  <Route path="clientes" element={<D03Lista />} />
+                  <Route path="clientes/:id" element={<D03Ficha />} />
+                  <Route path="listados" element={<D06Lista />} />
+                  <Route path="listados/:id" element={<D06Detalle />} />
+                  <Route path="pagos" element={<D07Lista />} />
+                  <Route path="listados/:id/pago" element={<D07Pago />} />
+                  <Route path="cronogramas" element={<D05Lista />} />
+                  <Route path="cronogramas/:compraId" element={<D05Detalle />} />
+                  <Route path="productos" element={<D02Productos />} />
+                  <Route path="ayuda" element={<D08Ayuda />} />
+                  <Route path="ayuda/:tema" element={<D08Ayuda />} />
+                </Route>
+                <Route
+                  path="/m/*"
+                  element={
+                    <Vacio texto="La vista móvil del cliente estará disponible en la fase 5." />
+                  }
+                />
+                <Route path="*" element={<Vacio texto="Esta página no existe." />} />
+              </Routes>
+            </Suspense>
+          </FronteraError>
+        </ProveedorSesion>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }
