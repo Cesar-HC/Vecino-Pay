@@ -194,12 +194,13 @@ export class PlataformaService {
 
   private async usuarioDto(u: usuario) {
     const bd = this.bd.global();
-    const tienda =
+    const tiendas =
       u.perfil === 'DUENO'
-        ? await bd.tienda.findFirst({ where: { duenio_id: u.id }, orderBy: { id: 'asc' } })
+        ? await bd.tienda.findMany({ where: { duenio_id: u.id }, orderBy: { id: 'asc' } })
         : u.perfil === 'CLIENTE'
-          ? (await bd.cliente.findFirst({ where: { usuario_id: u.id }, include: { tienda: true } }))?.tienda
-          : null;
+          ? (await bd.cliente.findMany({ where: { usuario_id: u.id }, include: { tienda: true } })).map((c) => c.tienda)
+          : [];
+    const lista = tiendas.map((t) => ({ id: aId(t.id), nombreComercial: t.nombre_comercial }));
     const acceso = await bd.auditoria.findFirst({
       where: { usuario_id: u.id, accion: 'LOGIN' },
       orderBy: { fecha_hora: 'desc' },
@@ -209,7 +210,8 @@ export class PlataformaService {
       username: u.username,
       nombres: u.nombres,
       perfil: u.perfil,
-      tienda: tienda ? { id: aId(tienda.id), nombreComercial: tienda.nombre_comercial } : null,
+      tienda: lista[0] ?? null,
+      tiendas: lista,
       ultimoAcceso: acceso ? fechaHoraIso(acceso.fecha_hora) : null,
       estado: u.estado,
     };
@@ -244,7 +246,7 @@ export class PlataformaService {
         const nuevo = await tx.usuario.create({
           data: { perfil: dto.perfil, username: dto.username, password_hash: hash, nombres: dto.nombres },
         });
-        if (dto.tiendaId && dto.perfil === 'DUENO') await this.asignarTienda(tx, BigInt(dto.tiendaId), nuevo.id);
+        if (dto.tiendaId && dto.perfil === 'DUENO') await this.asignarTienda(tx, c, BigInt(dto.tiendaId), nuevo.id);
         await this.bd.auditarEn(tx, {
           usuarioId: c.usuarioId,
           accion: 'ALTA',
@@ -263,9 +265,21 @@ export class PlataformaService {
     }
   }
 
-  private async asignarTienda(tx: Prisma.TransactionClient, tiendaId: bigint, duenioId: bigint) {
-    if (!(await tx.tienda.findUnique({ where: { id: tiendaId } }))) throw noExiste('La tienda');
+  /** Ceder una tienda cambia quién la opera: queda en su historial (RF01, RF11). */
+  private async asignarTienda(tx: Prisma.TransactionClient, c: Contexto, tiendaId: bigint, duenioId: bigint) {
+    const actual = await tx.tienda.findUnique({ where: { id: tiendaId }, include: { usuario: true } });
+    if (!actual) throw noExiste('La tienda');
+    if (actual.duenio_id === duenioId) return;
+    const nuevo = await tx.usuario.findUniqueOrThrow({ where: { id: duenioId } });
     await tx.tienda.update({ where: { id: tiendaId }, data: { duenio_id: duenioId } });
+    await this.bd.auditarEn(tx, {
+      usuarioId: c.usuarioId,
+      tiendaId,
+      accion: 'CAMBIO',
+      tabla: 'tienda',
+      registroId: tiendaId,
+      detalle: `Cesión de la tienda ${actual.nombre_comercial} de ${actual.usuario.username} a ${nuevo.username}.`,
+    });
   }
 
   private async exigirUsuario(tx: Prisma.TransactionClient, id: bigint) {
@@ -277,7 +291,7 @@ export class PlataformaService {
   async editarUsuario(c: Contexto, id: bigint, dto: EditarUsuarioDto) {
     const u = await this.bd.transaccionGlobal(async (tx) => {
       const actual = await this.exigirUsuario(tx, id);
-      if (dto.tiendaId && actual.perfil === 'DUENO') await this.asignarTienda(tx, BigInt(dto.tiendaId), id);
+      if (dto.tiendaId && actual.perfil === 'DUENO') await this.asignarTienda(tx, c, BigInt(dto.tiendaId), id);
       const editado = await tx.usuario.update({ where: { id }, data: { nombres: dto.nombres } });
       await this.bd.auditarEn(tx, {
         usuarioId: c.usuarioId,

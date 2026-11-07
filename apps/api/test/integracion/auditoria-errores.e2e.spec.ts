@@ -87,6 +87,31 @@ describe('matriz de auditoría (8.1)', () => {
     await p.post('/auth/login', undefined, { username: usuarioDueno, password: 'Clave#2026', perfil: 'DUENO' }).expect(401);
   });
 
+  it('la cesión de una tienda queda en su historial, también al crear el usuario', async () => {
+    const unico = `${Date.now()}`.slice(-9);
+    const creada = (await p.post('/tiendas', admin, { ruc: `60${unico}`, razonSocial: 'C', nombreComercial: 'Cedida', giro: 'X', cokTea: '0.2', usuarioDueno: `ced${unico}@p.test`, claveTemporal: 'Clave#2026' }).expect(201)).body;
+    const r = await auditada(
+      () => p.post('/usuarios', admin, { perfil: 'DUENO', username: `rec${unico}@p.test`, nombres: 'Receptor', claveTemporal: 'Clave#2026', tiendaId: creada.id }),
+      201,
+      [
+        { accion: 'CAMBIO', tabla: 'tienda', usuario: 'con', tienda: 'con', registro: 'con' },
+        { accion: 'ALTA', tabla: 'usuario', usuario: 'con' },
+      ],
+    );
+    const receptor = (r as unknown as { body: { id: string } }).body.id;
+    const f = await p.bd.auditoria.findFirstOrThrow({ where: { tabla: 'tienda', accion: 'CAMBIO', registro_id: BigInt(creada.id) } });
+    expect(f.detalle).toBe(`Cesión de la tienda Cedida de ced${unico}@p.test a rec${unico}@p.test.`);
+
+    const otro = (await p.post('/usuarios', admin, { perfil: 'DUENO', username: `otro${unico}@p.test`, nombres: 'Otro', claveTemporal: 'Clave#2026' }).expect(201)).body.id;
+    await auditada(() => p.patch(`/usuarios/${otro}`, admin, { tiendaId: creada.id }), 200, [
+      { accion: 'CAMBIO', tabla: 'tienda' },
+      { accion: 'CAMBIO', tabla: 'usuario' },
+    ]);
+    // Editar sin cambiar de dueño no agrega otra fila de cesión.
+    await auditada(() => p.patch(`/usuarios/${otro}`, admin, { tiendaId: creada.id }), 200, [{ accion: 'CAMBIO', tabla: 'usuario' }]);
+    expect(receptor).toBeTruthy();
+  });
+
   it('usuario: reactivación', async () => {
     const u = (await p.post('/usuarios', admin, { perfil: 'ADMIN_SISTEMA', username: `c${dniUnico()}@p.test`, nombres: 'X', claveTemporal: 'Clave#2026' }).expect(201)).body;
     await auditada(() => p.patch(`/usuarios/${u.id}/estado`, admin, { estado: 'INACTIVO' }), 200, [{ accion: 'BAJA', tabla: 'usuario' }]);

@@ -17,6 +17,7 @@ import {
   red,
   simularVentaEnCuotas,
   tem,
+  usoLimite,
   validarModalidad,
 } from '@vecinopay/finance';
 import { Type } from 'class-transformer';
@@ -121,7 +122,7 @@ async function calcularCompra(
         })
       : null;
 
-  return { cliente, detalle, montoLista, montoContado, fechaOperativa, ciclo, ted, limite, venta };
+  return { cliente, detalle, montoLista, montoContado, fechaOperativa, ciclo, ted, su, limite, venta };
 }
 
 function compraDto(c: compra & { cuota?: cuota[] }) {
@@ -192,6 +193,11 @@ export class ComprasService {
         limite: {
           aceptada: r.limite.aceptada,
           disponible: aSoles(r.limite.disponible),
+          limite: aSoles(r.cliente.limite_credito),
+          su: aSoles(r.su),
+          // La barra de D04: la web no hace cuentas con montos.
+          usoActualPorcentaje: usoLimite(r.su, aDecBd(r.cliente.limite_credito)).toFixed(1),
+          usoConCompraPorcentaje: usoLimite(r.su.plus(r.montoLista), aDecBd(r.cliente.limite_credito)).toFixed(1),
           mensaje: r.limite.aceptada ? undefined : r.limite.mensaje,
         },
         finMes: r.venta
@@ -409,7 +415,9 @@ export class ComprasService {
       compra: {
         id: aId(x.id),
         ticket: x.ticket,
+        clienteId: aId(x.cliente_id),
         cliente: `${x.cliente.nombres} ${x.cliente.apellidos}`,
+        moneda: x.cliente.moneda,
         fechaHora: `${p.fecha}T${p.hora}`,
         fechaOperativa: fechaOperativaLocal(p.fecha, p.hora),
         fechaPago,

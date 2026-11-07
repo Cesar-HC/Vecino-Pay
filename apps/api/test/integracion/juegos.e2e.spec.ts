@@ -246,6 +246,7 @@ describe('Juego 2 (T18 a T20, T22)', () => {
     expect(s.cuotas.filas.map((f: { t: number }) => f.t)).toEqual([41, 72, 102]);
     expect(s.cuotas.filas.map((f: { valorActual: string }) => f.valorActual)).toEqual(['91.33', '89.91', '88.56']);
     expect(s.lineas).toHaveLength(2);
+    expect(s.limite).toMatchObject({ aceptada: true, limite: '600.00', su: '0.00', usoActualPorcentaje: '0.0', usoConCompraPorcentaje: '43.0' });
     expect(await p.bd.compra.count()).toBe(compras);
   });
 
@@ -264,6 +265,8 @@ describe('Juego 2 (T18 a T20, T22)', () => {
     expect(k.flujoCaja.filas[0].flujo).toBe('-249.80');
     expect(k.flujoCaja.filas.slice(1).map((f: { t: number }) => f.t)).toEqual([41, 72, 102]);
     expect(k.flujoCaja.cokTea).toBe('0.200000000');
+    expect(k.compra.moneda).toBe('PEN');
+    expect(k.compra.clienteId).toBe(maria);
     expect(k.totales).toEqual({ interes: '18.69', amortizacion: '261.07', monto: '279.76' });
     expect(k.resumen).toMatchObject({ interesesTotales: '21.96', tirDiaria: '0.0011469966', tceaPorcentaje: '51.09', van: '20.01' });
     expect(k.flujoCaja.filas.slice(1).map((f: { valorActual: string }) => f.valorActual)).toEqual(['91.33', '89.91', '88.56']);

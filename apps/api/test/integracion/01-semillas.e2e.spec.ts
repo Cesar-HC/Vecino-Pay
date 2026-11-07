@@ -71,6 +71,58 @@ describe('estado sembrado', () => {
     expect(r.tiendasPorGiro).toContainEqual(expect.objectContaining({ giro: 'Minimarket' }));
   });
 
+  it('tiendas de demostración: A02 a A05 no salen vacías', async () => {
+    const admin = await p.admin();
+    const a02 = (await p.get('/plataforma/resumen', admin).expect(200)).body;
+    for (const mes of ['2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09']) {
+      expect(a02.altasPorMes).toContainEqual({ mes, cantidad: 1 });
+    }
+    const giros = a02.tiendasPorGiro.map((g: { giro: string }) => g.giro);
+    expect(giros).toEqual(expect.arrayContaining(['Bodega', 'Panadería', 'Pollería', 'Librería', 'Minimarket']));
+    expect(giros).not.toContain('Peluquería');
+    const dia = (f: string) => a02.operacionesPorDia.find((d: { fecha: string }) => d.fecha === f).cantidad;
+    expect([dia('2026-09-16'), dia('2026-09-17')]).toEqual([2, 2]);
+    expect(dia('2026-09-22')).toBeGreaterThanOrEqual(4);
+
+    const pelu = (await p.get('/tiendas?texto=Peluquería', admin).expect(200)).body.items[0];
+    expect(pelu).toMatchObject({ nombreComercial: 'Peluquería Estilo', estado: 'INACTIVO', duenio: { estado: 'INACTIVO' } });
+
+    const elena = (await p.get('/usuarios?texto=elena.demo', admin).expect(200)).body.items[0];
+    expect(elena).toMatchObject({ estado: 'INACTIVO', tienda: { nombreComercial: 'Peluquería Estilo' }, ultimoAcceso: '2026-09-10T18:00:00' });
+    const carlos = (await p.get('/usuarios?texto=carlos.demo', admin).expect(200)).body.items[0];
+    expect(carlos.tiendas.map((t: { nombreComercial: string }) => t.nombreComercial)).toEqual(['Bodega El Vecino', 'Pollería El Buen Sabor']);
+
+    const a05 = (await p.get(`/auditoria?tiendaId=${pelu.id}&accion=BAJA`, admin).expect(200)).body.items;
+    expect(a05.map((f: { tabla: string }) => f.tabla).sort()).toEqual(['tienda', 'usuario']);
+    const precio = (await p.get('/auditoria?accion=CAMBIO&desde=2026-09-16&hasta=2026-09-16', admin).expect(200)).body.items;
+    expect(precio[0].detalle).toBe('Cambio de precio del producto PAN01: lista de S/ *** a S/ ***.');
+  });
+
+  it('tiendas de demostración: el dueño de baja no entra, una tienda vacía y el selector de dos tiendas', async () => {
+    const elena = await p.post('/auth/login', undefined, { username: 'elena.demo@vecinopay.test', password: 'Tienda#2026', perfil: 'DUENO' }).expect(401);
+    expect(elena.body.codigo).toBe('CREDENCIALES');
+    const ana = await p.login('ana.demo@vecinopay.test', 'Tienda#2026', 'DUENO');
+    const d01 = (await p.get('/negocio/resumen', ana).expect(200)).body;
+    expect([d01.clientes, d01.porMoneda]).toEqual([0, {}]);
+
+    const carlos = (await p.post('/auth/login', undefined, { username: 'carlos.demo@vecinopay.test', password: 'Tienda#2026', perfil: 'DUENO' }).expect(200)).body;
+    expect(carlos.tiendas).toHaveLength(2);
+    const codigos = async (token: string) => (await p.get('/productos', token).expect(200)).body.items.map((x: { codigo: string }) => x.codigo);
+    expect(await codigos(carlos.token)).toEqual(['BOD01']);
+    const otra = carlos.tiendas.find((t: { nombreComercial: string }) => t.nombreComercial.startsWith('Pollería'));
+    const cambio = (await p.post('/auth/cambiar-tienda', carlos.token, { tiendaId: otra.id }).expect(200)).body;
+    expect(await codigos(cambio.token)).toEqual(['POL01']);
+  });
+
+  it('la barra de D04 con Luis y una compra sobre el límite', async () => {
+    const rosa = await p.rosa();
+    const luis = (await p.get('/clientes?texto=45872316', rosa)).body.items[0];
+    const producto = (await p.get('/productos?texto=P003', rosa)).body.items[0];
+    const s = (await p.post('/compras/simular', rosa, { clienteId: luis.id, modalidad: 'FIN_MES', items: [{ productoId: producto.id, cantidad: '99.900' }] }).expect(200)).body;
+    expect(s.limite).toMatchObject({ aceptada: false, disponible: '255.08', su: '244.92', usoActualPorcentaje: '49.0', usoConCompraPorcentaje: '248.8' });
+    expect(s.montoLista).toBe('999.00');
+  });
+
   it('C02: María activa una sola vez con su código y se registra la aceptación', async () => {
     const cuerpo = {
       dni: '40000002',
