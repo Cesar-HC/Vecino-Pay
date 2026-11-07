@@ -49,6 +49,7 @@ Para apagar: `docker compose down`. Para borrar también la base de datos: `dock
 npm install
 npm run db:up      # solo SQL Server en Docker
 npm test           # pruebas del motor financiero y unitarias de la API
+npm run test:web   # pruebas de la web (también corren con npm test)
 npm run test:integracion   # API contra un SQL Server desechable (puerto 14333), sin tocar tus datos
 npm run dev:api    # API en http://localhost:3000
 npm run dev:web    # web en http://localhost:5173 (redirige /api a la API)
@@ -57,7 +58,8 @@ npm run dev:web    # web en http://localhost:5173 (redirige /api a la API)
 ## Base de datos y semillas
 
 `db/init` crea las 11 tablas de la sección 8 del informe, más las 3 columnas registradas en
-`docs/decisiones.md`, y carga los juegos de prueba 1 y 2, con el estado al 22/09/2026. Los scripts se
+`docs/decisiones.md`, y carga los juegos de prueba 1 y 2, con el estado al 22/09/2026. Los juegos están solo en
+Minimarket Doña Rosa; 5 tiendas de demostración, sin clientes ni compras, llenan las pantallas del administrador. Los scripts se
 aplican en cada arranque y no repiten nada: si la tienda ya existe, las semillas no cambian. Para volver
 al estado inicial (o aplicar un cambio de esquema) usa `docker compose down -v`, que borra todos los datos.
 
@@ -78,6 +80,10 @@ Usuarios de demo (solo para desarrollo local):
 | `admin@vecinopay.test` | Administrador | `Admin#2026` |
 | `rosa@vecinopay.test` | Dueña de Minimarket Doña Rosa | `Tienda#2026` |
 | `45872316` | Luis Quispe, cuenta activada | `Vecino#2026` |
+| `carlos.demo@vecinopay.test` | Dueño de 2 tiendas: muestra el selector | `Tienda#2026` |
+| `ana.demo@vecinopay.test` | Dueña de Panadería San Martín, sin clientes | `Tienda#2026` |
+| `jorge.demo@vecinopay.test` | Dueño de Librería El Estudiante, sin clientes | `Tienda#2026` |
+| `elena.demo@vecinopay.test` | Dueña de Peluquería Estilo, en BAJA: no puede entrar | `Tienda#2026` |
 
 María Huamán (DNI `40000002`) queda sin activar para demostrar la activación con el código `MDR-7K2Q`.
 Los datos que no salen del informe están marcados como `FICTICIO (demo)` en `db/init/02_semillas.sql`.
@@ -91,9 +97,24 @@ Para otra fecha reinicia solo la API; vacía, usa la hora real. La API no arranc
 RELOJ_FIJO=2026-09-26T17:30:00-05:00 docker compose up -d api
 ```
 
+En PowerShell:
+
+```powershell
+$env:RELOJ_FIJO='2026-09-26T17:30:00-05:00'; docker compose up -d api
+```
+
 Todas las rutas están en Swagger (http://localhost:3000/api/docs), con su botón **Authorize** para el token de
 `POST /api/auth/login`. Con el reloj fijo no hay corte automático: lo ejecuta el administrador con
-`POST /api/cortes/ejecutar`, solo para hoy y después de las 17:00:00.
+`POST /api/cortes/ejecutar` o con el botón de A02 en la web, solo para hoy y después de las 17:00:00.
+
+## Probar la web
+
+Abre http://localhost:8080 e inicia sesión con los usuarios de demo. Con el reloj en 22/09/2026, D01 de Rosa muestra
+S/ 502.72, S/ 228.42 (26/09/2026), S/ 4.80, S/ 0.00 y S/ 20.01.
+
+Para el pago del juego 1, pon el reloj en `2026-10-01T12:00:00-05:00` y abre Pagos con Rosa: el total es S/ 228.72,
+un pago de S/ 200.00 se rechaza y S/ 228.72 se acepta, con imputación S/ 0.30, S/ 4.80 y S/ 223.62. Un listado se paga
+una sola vez: repetirlo exige recargar las semillas con `docker compose down -v`, que borra todos los datos.
 
 ## Reglas fijas del sistema
 
@@ -111,7 +132,7 @@ Todas las rutas están en Swagger (http://localhost:3000/api/docs), con su botó
 | 1 | Esquema SQL de 11 tablas y semillas (juegos 1 y 2) | Aprobada |
 | 2 | Motor financiero con pruebas al céntimo | Aprobada |
 | 3 | API: auth, roles, multitienda, compras, corte, listados, pagos, cronogramas, auditoría | Aprobada |
-| 4 | Web del administrador y del dueño (A01–A05, D01–D08) | Pendiente |
+| 4 | Web del administrador y del dueño (A01–A05, D01–D08) | Auditada (CONFORME), falta la aprobación de Adrián |
 | 5 | Vista móvil del cliente (C01–C09) | Pendiente |
 | 6 | Pruebas E2E y guía para la demo | Pendiente |
 
