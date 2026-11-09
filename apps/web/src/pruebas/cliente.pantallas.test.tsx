@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { ReactNode } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import C01LoginCliente from '../pantallas/cliente/C01LoginCliente';
+import Ingreso from '../pantallas/comun/Ingreso';
 import C03InicioCliente from '../pantallas/cliente/C03InicioCliente';
 import C05MiListado from '../pantallas/cliente/C05MiListado';
 import C06MisCuotas from '../pantallas/cliente/C06MisCuotas';
@@ -213,7 +213,7 @@ describe('C01 Login del cliente', () => {
     const espia = vi
       .spyOn(globalThis, 'fetch')
       .mockImplementation(async () => new Response(JSON.stringify(SIN_SESION), { status: 401 }));
-    montar(<C01LoginCliente />);
+    montar(<Ingreso modoInicial="cliente" />);
     await userEvent.type(await screen.findByLabelText(/DNI/), '123');
     await userEvent.click(screen.getByRole('button', { name: /Ingresar/ }));
     expect(await screen.findByText('El DNI debe tener 8 dígitos numéricos.')).toBeInTheDocument();

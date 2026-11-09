@@ -1,8 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
-import { FranjaReloj } from '../../plantillas/Plantilla';
 import { inicioDe, useSesion } from '../../sesion/Sesion';
 import { Boton, Campo, claseEntrada, Franja, mensajeError } from '../../ui/base';
 
@@ -13,8 +12,9 @@ const esquema = z.object({
 });
 type Datos = z.infer<typeof esquema>;
 
-export default function A01Login() {
-  const { sesion, entrar, aviso } = useSesion();
+/** A01: formulario de ingreso del comercio (administrador del negocio o del sistema). Va dentro de `Ingreso`. */
+export default function FormularioComercio() {
+  const { entrar } = useSesion();
   const navegar = useNavigate();
   const {
     register,
@@ -25,7 +25,6 @@ export default function A01Login() {
     resolver: zodResolver(esquema),
     defaultValues: { perfil: 'DUENO' },
   });
-  if (sesion) return <Navigate to={inicioDe(sesion.usuario.perfil)} replace />;
 
   const enviar = handleSubmit(async (d) => {
     try {
@@ -37,72 +36,53 @@ export default function A01Login() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <FranjaReloj />
-      <div className="mx-auto grid max-w-4xl gap-6 p-4 md:grid-cols-2 md:p-10">
-        <section className="flex flex-col justify-center rounded-2xl bg-vecino-oscuro p-8 text-white">
-          <h1 className="text-3xl font-bold">VecinoPay</h1>
-          <p className="mt-2 text-white/90">
-            El cuaderno del fiado de tu barrio, ahora en digital.
-          </p>
-        </section>
-        <form onSubmit={enviar} noValidate className="space-y-4 rounded-2xl bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-semibold text-vecino-oscuro">Inicia sesión</h2>
-          {aviso && <Franja tipo="aviso">{aviso}</Franja>}
-          <Campo
-            etiqueta="Usuario"
-            ayuda="Tu correo o tu DNI, el que te entregaron al darte de alta. Ejemplo: rosa@vecinopay.test"
-            error={errors.username?.message}
-          >
-            {(id) => (
-              <input
-                id={id}
-                autoComplete="username"
-                className={claseEntrada}
-                {...register('username')}
-              />
-            )}
-          </Campo>
-          <Campo
-            etiqueta="Contraseña"
-            ayuda="La clave de tu usuario. Tiene 8 caracteres o más y distingue mayúsculas."
-            error={errors.password?.message}
-          >
-            {(id) => (
-              <input
-                id={id}
-                type="password"
-                autoComplete="current-password"
-                className={claseEntrada}
-                {...register('password')}
-              />
-            )}
-          </Campo>
-          <Campo
-            etiqueta="Perfil"
-            ayuda="El perfil define qué pantallas ves: la plataforma completa o tu negocio."
-            error={errors.perfil?.message}
-          >
-            {(id) => (
-              <select id={id} className={claseEntrada} {...register('perfil')}>
-                <option value="DUENO">Administrador del negocio</option>
-                <option value="ADMIN_SISTEMA">Administrador del sistema</option>
-              </select>
-            )}
-          </Campo>
-          {errors.root && <Franja tipo="error">{errors.root.message}</Franja>}
-          <Boton type="submit" disabled={isSubmitting} className="w-full">
-            Ingresar
-          </Boton>
-          <p className="text-xs text-gray-500">Cada inicio de sesión queda registrado.</p>
-          <div className="border-t border-gray-100 pt-3 text-center text-xs text-gray-600">
-            ¿Eres cliente de una tienda?{' '}
-            <Link to="/m/login" className="font-semibold text-vecino-primario hover:underline">
-              Ingresa al portal móvil aquí
-            </Link>
-          </div>
-        </form>
-      </div>
-    </div>
+    <form onSubmit={enviar} noValidate className="space-y-4">
+      <Campo
+        etiqueta="Usuario"
+        ayuda="Tu correo o tu DNI, el que te entregaron al darte de alta. Ejemplo: rosa@vecinopay.test"
+        error={errors.username?.message}
+      >
+        {(id) => (
+          <input
+            id={id}
+            autoComplete="username"
+            className={claseEntrada}
+            {...register('username')}
+          />
+        )}
+      </Campo>
+      <Campo
+        etiqueta="Contraseña"
+        ayuda="La clave de tu usuario. Tiene 8 caracteres o más y distingue mayúsculas."
+        error={errors.password?.message}
+      >
+        {(id) => (
+          <input
+            id={id}
+            type="password"
+            autoComplete="current-password"
+            className={claseEntrada}
+            {...register('password')}
+          />
+        )}
+      </Campo>
+      <Campo
+        etiqueta="Perfil"
+        ayuda="El perfil define qué pantallas ves: la plataforma completa o tu negocio."
+        error={errors.perfil?.message}
+      >
+        {(id) => (
+          <select id={id} className={claseEntrada} {...register('perfil')}>
+            <option value="DUENO">Administrador del negocio</option>
+            <option value="ADMIN_SISTEMA">Administrador del sistema</option>
+          </select>
+        )}
+      </Campo>
+      {errors.root && <Franja tipo="error">{errors.root.message}</Franja>}
+      <Boton type="submit" disabled={isSubmitting} className="w-full">
+        Ingresar
+      </Boton>
+      <p className="text-xs text-gray-500">Cada inicio de sesión queda registrado.</p>
+    </form>
   );
 }

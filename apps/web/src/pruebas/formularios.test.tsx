@@ -5,7 +5,7 @@ import { ReactNode, useEffect } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mayorQueCero } from '../lib/entrada';
-import A01Login from '../pantallas/admin/A01Login';
+import Ingreso from '../pantallas/comun/Ingreso';
 import A03Tiendas from '../pantallas/admin/A03Tiendas';
 import A04Usuarios from '../pantallas/admin/A04Usuarios';
 import A05Auditoria from '../pantallas/admin/A05Auditoria';
@@ -119,7 +119,7 @@ describe('sesión', () => {
     ]);
     montar(
       <Routes>
-        <Route path="/login" element={<A01Login />} />
+        <Route path="/login" element={<Ingreso modoInicial="comercio" />} />
         <Route path="/dueno" element={<p>Inicio del dueño</p>} />
       </Routes>,
       '/login',
