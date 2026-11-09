@@ -20,30 +20,29 @@ test.describe('Juego 1: Luis Quispe, compras a fin de mes', () => {
     await page.getByText('EC-202609-00001').first().click();
     const cuerpo = page.locator('main');
     await expect(cuerpo).toContainText('Listado EC-202609-00001');
-    // Una fila por compra: ticket, días, capital, interés y total.
-    const filas: [string, string, string, string, string][] = [
-      ['T-000231', '35', '44.20', '1.63', '45.83'],
-      ['T-000245', '27', '32.80', '0.93', '33.73'],
-      ['T-000262', '21', '63.82', '1.40', '65.22'],
-      ['T-000278', '13', '30.50', '0.41', '30.91'],
-      ['T-000290', '8', '52.30', '0.43', '52.73'],
+    // Una fila por compra, celda por celda (columnas: ticket, registro, fecha operativa, detalle,
+    // días, capital, interés, total). Las compras hechas después de las 17:00 llevan asterisco
+    // y cuentan desde el día siguiente (T-000245 y T-000278).
+    const filas: [string, string, string, string, string, string, string, string][] = [
+      ['T-000231', '22/08/2026 09:15', '22/08/2026', '35', '44.20', '1.63', '45.83', ''],
+      ['T-000245', '29/08/2026 18:40', '30/08/2026', '27', '32.80', '0.93', '33.73', ' *'],
+      ['T-000262', '05/09/2026 11:05', '05/09/2026', '21', '63.82', '1.40', '65.22', ''],
+      ['T-000278', '12/09/2026 19:30', '13/09/2026', '13', '30.50', '0.41', '30.91', ' *'],
+      ['T-000290', '18/09/2026 08:50', '18/09/2026', '8', '52.30', '0.43', '52.73', ''],
     ];
-    for (const [ticket, dias, capital, interes, total] of filas) {
-      const fila = page.getByRole('row').filter({ hasText: ticket });
-      await expect(fila).toContainText(`${dias}`);
-      await expect(fila).toContainText(`S/ ${capital}`);
-      await expect(fila).toContainText(`S/ ${interes}`);
-      await expect(fila).toContainText(`S/ ${total}`);
+    for (const [ticket, registro, operativa, dias, capital, interes, total, marca] of filas) {
+      const celdas = page.getByRole('row').filter({ hasText: ticket }).locator('td');
+      await expect(celdas).toHaveCount(8);
+      await expect(celdas.nth(0)).toHaveText(`${ticket}${marca}`);
+      await expect(celdas.nth(1)).toHaveText(registro);
+      await expect(celdas.nth(2)).toHaveText(operativa);
+      await expect(celdas.nth(4)).toHaveText(dias);
+      await expect(celdas.nth(5)).toHaveText(`S/ ${capital}`);
+      await expect(celdas.nth(6)).toHaveText(`S/ ${interes}`);
+      await expect(celdas.nth(7)).toHaveText(`S/ ${total}`);
     }
-    // Pie del listado y compras registradas después de las 17:00 (asterisco).
-    await expect(cuerpo).toContainText('S/ 223.62');
-    await expect(cuerpo).toContainText('S/ 4.80');
-    await expect(cuerpo).toContainText('S/ 228.42');
-    await expect(page.getByRole('row').filter({ hasText: 'T-000245' })).toContainText('*');
-    await expect(page.getByRole('row').filter({ hasText: 'T-000278' })).toContainText('*');
-    await expect(page.getByRole('row').filter({ hasText: 'T-000231' })).not.toContainText(
-      'T-000231 *',
-    );
+    // Pie del listado: capital, interés y total.
+    await expect(cuerpo).toContainText(/Total a pagar\s*S\/ 223\.62\s*S\/ 4\.80\s*S\/ 228\.42/);
     // La compra del 20/09 a las 17:45 queda fuera del listado y pasa al ciclo siguiente.
     await expect(cuerpo).toContainText(
       'La compra T-000301 del 20/09/2026 17:45 por S/ 21.30 no está en este listado',
@@ -82,8 +81,19 @@ test.describe('Juego 1: Luis Quispe, compras a fin de mes', () => {
     await entrarAdmin(page);
     await page.goto('/admin/auditoria');
     await page.getByLabel(/^Acción/).selectOption('RECHAZO');
-    await expect(page.getByRole('row').filter({ hasText: 'RECHAZO' }).first()).toBeVisible();
+    // Las semillas ya traen un RECHAZO de compra del 19/09: el nuevo es el de hoy (22/09/2026 12:00),
+    // de la tabla `compra`. Los rechazos de inicio de sesión son de la tabla `usuario`.
+    const nuevo = page
+      .getByRole('row')
+      .filter({ hasText: 'RECHAZO' })
+      .filter({ hasText: '22/09/2026 12:00:00' })
+      .filter({ hasText: 'compra' });
+    await expect(nuevo).toHaveCount(1);
+    await expect(nuevo).toContainText('Minimarket Doña Rosa');
+    await expect(nuevo).toContainText('rosa@vecinopay.test');
+    // El importe de la compra no se muestra al administrador, tampoco el de la semilla.
     await expect(page.locator('main')).not.toContainText('999.00');
+    await expect(page.locator('main')).not.toContainText('255.08');
     await cerrarSesion(page);
   });
 });

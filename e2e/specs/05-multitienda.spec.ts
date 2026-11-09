@@ -9,6 +9,8 @@ test('Rosa no ve el selector de tienda; Carlos, con dos tiendas, sí, y el catá
   page,
 }) => {
   await entrarDueno(page, 'rosa@vecinopay.test');
+  // Primero se espera algo del encabezado ya dibujado: sin eso, "ningún selector" sería cierto de inmediato.
+  await expect(page.locator('header')).toContainText('Minimarket Doña Rosa');
   await expect(page.locator('header select')).toHaveCount(0);
   await cerrarSesion(page);
 
@@ -49,14 +51,18 @@ test('Carlos no ve a Luis ni a María, y abrir su ficha o su listado por la URL 
   await cerrarSesion(page);
 
   await entrarDueno(page, 'carlos.demo@vecinopay.test');
+  // En cada pantalla se espera primero su título (la pantalla ya cargó) y su tabla, y recién entonces se
+  // comprueba lo que no debe aparecer. Carlos todavía no tiene clientes en Bodega El Vecino.
   await page.goto('/dueno/clientes');
+  await expect(page.getByRole('heading', { name: 'Clientes y condiciones' })).toBeVisible();
   await expect(page.locator('main')).not.toContainText('Luis Quispe');
   await expect(page.locator('main')).not.toContainText('María Huamán');
   await page.goto(`/dueno/clientes/${luis!.id}`);
-  await page.waitForLoadState('networkidle');
+  await expect(page.getByRole('alert')).toBeVisible();
   await expect(page.locator('body')).not.toContainText('Luis Quispe');
   await expect(page.locator('body')).not.toContainText('45872316');
   await page.goto('/dueno/listados');
+  await expect(page.getByRole('heading', { name: 'Listados de pago' })).toBeVisible();
   await expect(page.locator('main')).not.toContainText('EC-202609-00001');
   const tokenCarlos = await page.evaluate(() => sessionStorage.getItem('vecinopay.token'));
   const directo = await page.request.get(`/api/clientes/${luis!.id}`, {
@@ -77,6 +83,6 @@ test('Elena, de una tienda dada de baja, no puede entrar', async ({ page }) => {
   await page.getByLabel(/^Usuario/).fill('elena.demo@vecinopay.test');
   await page.getByLabel(/^Contraseña/).fill('Tienda#2026');
   await page.getByRole('button', { name: 'Ingresar' }).click();
+  await expect(page.getByText('Usuario, contraseña o perfil incorrectos.')).toBeVisible();
   await expect(page).toHaveURL(/\/login/);
-  await expect(page.getByRole('alert')).toBeVisible();
 });

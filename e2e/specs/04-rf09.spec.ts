@@ -18,6 +18,26 @@ const CLAVES_PROHIBIDAS = [
   'tirdiaria',
 ];
 
+const TITULOS: Record<string, RegExp> = {
+  '/m': /Mi cuenta/,
+  '/m/menu': /Menú principal/,
+  '/m/listado': /Mi listado de pago/,
+  '/m/cuotas': /Mis (compras en )?cuotas/,
+  '/m/pagos': /Mis pagos/,
+  '/m/perfil': /Mi perfil y condiciones/,
+  '/m/ayuda': /Ayuda y educación financiera/,
+};
+// Rutas de la API que esas pantallas deben haber consultado: si no se llamaron, no se comprobó nada.
+const RUTAS_API = [
+  '/api/mi/resumen',
+  '/api/mi/listados',
+  '/api/mi/cuotas',
+  '/api/mi/pagos',
+  '/api/mi/perfil',
+];
+// Un importe de la tienda como cadena ("20.01") o como número (20.01), sin pegarse a otros dígitos.
+const IMPORTE_DE_LA_TIENDA = /(?<![\d.])(249\.80?|269\.81|20\.01)(?![\d])/;
+
 function clavesDe(valor: unknown, acumulado: string[] = []): string[] {
   if (Array.isArray(valor)) valor.forEach((v) => clavesDe(v, acumulado));
   else if (valor && typeof valor === 'object') {
@@ -40,6 +60,8 @@ async function recorrer(page: Page, dni: string) {
   for (const ruta of PANTALLAS) {
     await page.goto(ruta);
     await expect(page.locator('main')).toBeVisible();
+    // La pantalla debe haber cargado de verdad: sin su título, un error o un vacío pasaría la prueba.
+    await expect(page.locator('main')).toContainText(TITULOS[ruta]);
     await page.waitForLoadState('networkidle');
     textos[ruta] = await page.locator('body').innerText();
   }
@@ -60,14 +82,15 @@ for (const [nombre, dni] of [
         expect(texto, `${ruta} muestra ${cifra}`).not.toContain(cifra);
     }
     // Las respuestas de la API tampoco traen esos campos.
-    expect(respuestas.length).toBeGreaterThan(0);
+    const rutas = respuestas.map((r) => r.ruta);
+    for (const esperada of RUTAS_API)
+      expect(rutas, `no se consultó ${esperada}`).toContain(esperada);
     for (const { ruta, cuerpo } of respuestas) {
       const claves = clavesDe(cuerpo);
       for (const prohibida of CLAVES_PROHIBIDAS)
         expect(claves, `${ruta} trae "${prohibida}"`).not.toContain(prohibida);
       const json = JSON.stringify(cuerpo);
-      for (const cifra of CIFRAS_DE_LA_TIENDA)
-        expect(json, `${ruta} trae ${cifra}`).not.toContain(`"${cifra}"`);
+      expect(json, `${ruta} trae un importe de la tienda`).not.toMatch(IMPORTE_DE_LA_TIENDA);
     }
   });
 }

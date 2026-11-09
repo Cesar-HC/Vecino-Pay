@@ -21,7 +21,7 @@ test.describe('Juego 1: pagos de Luis Quispe', () => {
     await fijarReloj('2026-09-26T12:00:00-05:00');
     await abrirPagoDeLuis(page);
     const cuerpo = page.locator('main');
-    await expect(cuerpo).toContainText(/Días de mora\s*\??\s*0/);
+    await expect(cuerpo).toContainText(/Días de mora\s*\??\s*0(?!\d)/);
     await expect(cuerpo).toContainText(/Mora\s*\??\s*S\/ 0\.00/);
     await expect(cuerpo).toContainText(/Total a pagar\s*\??\s*S\/ 228\.42/);
   });
