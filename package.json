@@ -24,10 +24,14 @@
     "down": "docker compose down",
     "test:api": "npm run test -w apps/api",
     "test:integracion": "npm run test:integracion -w apps/api",
-    "test:web": "npm run test -w apps/web"
+    "test:web": "npm run test -w apps/web",
+    "test:e2e": "playwright test",
+    "test:e2e:instalar": "playwright install chromium",
+    "test:e2e:ui": "playwright test --ui"
   },
   "devDependencies": {
     "@eslint/js": "^9.14.0",
+    "@playwright/test": "1.64.1",
     "eslint": "^9.14.0",
     "prettier": "^3.3.3",
     "typescript": "^5.6.3",
