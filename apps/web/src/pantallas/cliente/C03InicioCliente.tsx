@@ -116,6 +116,10 @@ export default function C03InicioCliente() {
         </Tarjeta>
       </div>
 
+      <p className="rounded-xl bg-gray-50 p-3 text-xs text-gray-600">
+        Los pagos se hacen en la tienda. Tu tienda registrará el pago y lo verás en «Mis pagos».
+      </p>
+
       {p?.proyectado && (
         <Franja tipo="aviso">
           El monto es una estimación: se confirma en el próximo corte, a las 17:00.

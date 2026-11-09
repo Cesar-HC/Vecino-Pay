@@ -205,6 +205,12 @@ export default function C05MiListado() {
             {formatearFecha(detalle.fechaPago)}) genera intereses moratorios diarios según la tasa
             moratoria pactada.
           </div>
+
+          {/* Dónde se paga */}
+          <div className="rounded-xl bg-gray-50 p-3 text-xs text-gray-600">
+            <span className="font-semibold">¿Cómo pago?</span> El pago se hace en la tienda. Tu
+            tienda lo registrará y lo verás en «Mis pagos».
+          </div>
         </>
       )}
     </div>
