@@ -18,14 +18,8 @@ const BENEFICIOS = [
 export function Landing() {
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      <header className="mx-auto flex max-w-5xl items-center justify-between p-4">
+      <header className="mx-auto flex max-w-5xl items-center p-4">
         <span className="text-xl font-extrabold text-vecino-oscuro">VecinoPay</span>
-        <Link
-          to="/ingresar"
-          className="inline-flex min-h-11 items-center rounded-lg bg-vecino-primario px-5 text-sm font-semibold text-white hover:bg-vecino-oscuro"
-        >
-          Iniciar sesión
-        </Link>
       </header>
 
       <main className="mx-auto max-w-5xl px-4 pb-12">
