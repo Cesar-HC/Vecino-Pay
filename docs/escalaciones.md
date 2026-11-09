@@ -26,3 +26,11 @@ Solo temas que cumplen los criterios de escalamiento de `CLAUDE.md`.
 | 2026-11-06 | Globo de hora de corte de D03. La línea 2189 dice que explica el calendario exacto; el texto literal de T12 no lo menciona | A: mantener T12 y corregir esa frase del Word. B: agregar el calendario exacto al globo y a T12 | A, aplicada. No bloquea nada | Pendiente de Adrián |
 | 2026-11-06 | Franja de reloj y botón de corte. Solo salen con reloj fijo, y docker-compose lo trae por defecto: se ven en la demo normal y A02 no los describe | A: mantenerlos y explicarlos en la sustentación o en una frase del Word. B: esconderlos con otra variable y dejar el corte en Swagger; complica el juego 2 desde la web | A, aplicada. No bloquea nada | Pendiente de Adrián |
 | 2026-11-06 | Dueño que se queda sin tiendas al ceder la última. Queda ACTIVO y sigue sumando en A02; el informe solo define el caso de la baja (línea 2096) | A: mantenerlo ACTIVO, con el aviso actual. B: pasarlo a INACTIVO, como en la baja de tienda | A, aplicada, por el plazo. Bloquea solo ese conteo | Pendiente de Adrián |
+
+## 2026-11-09 · Quitar Docker y cambiar SQL Server por PostgreSQL (pgAdmin)
+- **Tema:** el usuario pide eliminar Docker y usar PostgreSQL administrado con pgAdmin. El informe v8 (sección 8) y CLAUDE.md fijan SQL Server 2022 con 11 tablas, y descartan los scripts antiguos de PostgreSQL.
+- **Opción A:** mantener SQL Server 2022, solo sin Docker (instalación local Developer o Express). Cambia la forma de ejecutar, no el stack ni el modelo.
+- **Opción B:** pasar a PostgreSQL. Cambia el stack: scripts de `db/`, esquema de Prisma, bloqueos y tipos específicos de SQL Server, y todas las pruebas de integración y de navegador. El informe v8 (sección 8) habría que corregirlo en el Word.
+- **Recomendación:** A si el motivo es quitar Docker. B solo si el grupo acepta cambiar el informe.
+- **Bloqueado:** nada se ha tocado. Falta la decisión de Adrián.
+- **Resolución (2026-11-09):** el usuario eligió la **opción B**: sin Docker y con PostgreSQL (pgAdmin como cliente). Cambia el stack respecto del informe v8 (sección 8); el Word debe corregirse (pendiente del grupo). PostgreSQL 17 ya está instalado y activo en la PC.
