@@ -98,7 +98,7 @@ export class ProductosService {
       estado: f.estado,
       permite_fin_mes: f.modalidad === 'FIN_MES' ? true : undefined,
       permite_cuotas: f.modalidad === 'CUOTAS' ? true : undefined,
-      ...(f.texto ? { OR: [{ nombre: { contains: f.texto } }, { codigo: { contains: f.texto } }] } : {}),
+      ...(f.texto ? { OR: [{ nombre: { contains: f.texto, mode: 'insensitive' as const } }, { codigo: { contains: f.texto, mode: 'insensitive' as const } }] } : {}),
     };
     const items = await bd.producto.findMany({ where, orderBy: { codigo: 'asc' }, ...paginar(f) });
     return { items: items.map(productoDto), total: await bd.producto.count({ where }) };

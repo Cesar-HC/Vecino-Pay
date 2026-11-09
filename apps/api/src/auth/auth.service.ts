@@ -172,7 +172,7 @@ export class AuthService {
       });
       return { username: nuevo.username };
     }).catch((e) => {
-      // Dos activaciones simultáneas del mismo DNI en tiendas distintas: choca UQ_usuario_username.
+      // Dos activaciones simultáneas del mismo DNI en tiendas distintas: choca uq_usuario_username.
       if (restriccionUnica(e)?.includes('usuario')) throw ERROR_DNI_ACTIVADO();
       throw e;
     });

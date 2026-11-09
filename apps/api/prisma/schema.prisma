@@ -3,25 +3,25 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlserver"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model auditoria {
-  id          BigInt   @id(map: "PK_auditoria") @default(autoincrement())
+  id          BigInt   @id(map: "pk_auditoria") @default(autoincrement())
   usuario_id  BigInt?
   tienda_id   BigInt?
-  fecha_hora  DateTime @default(dbgenerated("CONVERT([datetime2],(sysdatetimeoffset() AT TIME ZONE 'SA Pacific Standard Time'))"), map: "DF_auditoria_fecha")
+  fecha_hora  DateTime @default(dbgenerated("(timezone('America/Lima'::text, now()))")) @db.Timestamp(3)
   accion      String   @db.VarChar(15)
   tabla       String   @db.VarChar(40)
   registro_id BigInt?
-  detalle     String?  @db.NVarChar(Max)
-  tienda      tienda?  @relation(fields: [tienda_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_auditoria_tienda")
-  usuario     usuario? @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_auditoria_usuario")
+  detalle     String?  @db.Text
+  tienda      tienda?  @relation(fields: [tienda_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_auditoria_tienda")
+  usuario     usuario? @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_auditoria_usuario")
 }
 
 model cliente {
-  id                BigInt         @id(map: "PK_cliente") @default(autoincrement())
+  id                BigInt         @id(map: "pk_cliente") @default(autoincrement())
   tienda_id         BigInt
   usuario_id        BigInt?
   dni               String         @db.Char(8)
@@ -29,12 +29,12 @@ model cliente {
   apellidos         String         @db.VarChar(80)
   celular           String?        @db.VarChar(15)
   direccion         String?        @db.VarChar(200)
-  moneda            String         @default("PEN", map: "DF_cliente_moneda") @db.Char(3)
+  moneda            String         @default("PEN") @db.Char(3)
   limite_credito    Decimal        @db.Decimal(12, 2)
   max_meses         Int            @db.SmallInt
-  dia_corte         Int            @db.TinyInt
-  hora_corte        DateTime       @default(dbgenerated("17:00:00"), map: "DF_cliente_hora_corte") @db.Time
-  dia_pago          Int            @db.TinyInt
+  dia_corte         Int            @db.SmallInt
+  hora_corte        DateTime       @default(dbgenerated("'17:00:00'::time without time zone")) @db.Time(0)
+  dia_pago          Int            @db.SmallInt
   tipo_tasa         String         @db.VarChar(8)
   valor_tasa        Decimal        @db.Decimal(12, 9)
   plazo_tasa        Int            @db.SmallInt
@@ -43,23 +43,23 @@ model cliente {
   valor_tasa_mora   Decimal        @db.Decimal(12, 9)
   ted               Decimal        @db.Decimal(18, 15)
   ted_mora          Decimal        @db.Decimal(18, 15)
-  codigo_activacion String?        @db.VarChar(10)
-  estado            String         @default("ACTIVO", map: "DF_cliente_estado") @db.VarChar(8)
-  tienda            tienda         @relation(fields: [tienda_id], references: [id], onUpdate: NoAction, map: "FK_cliente_tienda")
-  usuario           usuario?       @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_cliente_usuario")
+  codigo_activacion String?        @db.Citext
+  estado            String         @default("ACTIVO") @db.VarChar(8)
+  tienda            tienda         @relation(fields: [tienda_id], references: [id], onUpdate: NoAction, map: "fk_cliente_tienda")
+  usuario           usuario?       @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_cliente_usuario")
   compra            compra[]
   listado_pago      listado_pago[]
 
-  @@unique([id, tienda_id], map: "UQ_cliente_id_tienda")
-  @@unique([tienda_id, dni], map: "UQ_cliente_tienda_dni")
+  @@unique([id, tienda_id], map: "uq_cliente_id_tienda")
+  @@unique([tienda_id, dni], map: "uq_cliente_tienda_dni")
 }
 
 model compra {
-  id                   BigInt           @id(map: "PK_compra") @default(autoincrement())
+  id                   BigInt           @id(map: "pk_compra") @default(autoincrement())
   tienda_id            BigInt
   cliente_id           BigInt
   ticket               String           @db.VarChar(20)
-  fecha_hora           DateTime
+  fecha_hora           DateTime         @db.Timestamp(3)
   modalidad            String           @db.VarChar(7)
   monto_lista          Decimal          @db.Decimal(12, 2)
   monto_contado        Decimal          @db.Decimal(12, 2)
@@ -72,30 +72,30 @@ model compra {
   cuota_fija           Decimal?         @db.Decimal(12, 2)
   tcea                 Decimal?         @db.Decimal(16, 10)
   van                  Decimal?         @db.Decimal(12, 2)
-  estado               String           @default("PENDIENTE", map: "DF_compra_estado") @db.VarChar(10)
-  cliente              cliente          @relation(fields: [cliente_id, tienda_id], references: [id, tienda_id], onUpdate: NoAction, map: "FK_compra_cliente")
-  tienda               tienda           @relation(fields: [tienda_id], references: [id], onUpdate: NoAction, map: "FK_compra_tienda")
+  estado               String           @default("PENDIENTE") @db.VarChar(10)
+  cliente              cliente          @relation(fields: [cliente_id, tienda_id], references: [id, tienda_id], onUpdate: NoAction, map: "fk_compra_cliente")
+  tienda               tienda           @relation(fields: [tienda_id], references: [id], onUpdate: NoAction, map: "fk_compra_tienda")
   compra_detalle       compra_detalle[]
   cuota                cuota[]
   listado_item         listado_item[]
 
-  @@unique([tienda_id, ticket], map: "UQ_compra_tienda_ticket")
+  @@unique([tienda_id, ticket], map: "uq_compra_tienda_ticket")
 }
 
 model compra_detalle {
-  id             BigInt   @id(map: "PK_compra_detalle") @default(autoincrement())
+  id             BigInt   @id(map: "pk_compra_detalle") @default(autoincrement())
   compra_id      BigInt
   producto_id    BigInt
   cantidad       Decimal  @db.Decimal(10, 3)
   precio_lista   Decimal  @db.Decimal(10, 2)
   precio_contado Decimal  @db.Decimal(10, 2)
   subtotal       Decimal  @db.Decimal(12, 2)
-  compra         compra   @relation(fields: [compra_id], references: [id], onUpdate: NoAction, map: "FK_detalle_compra")
-  producto       producto @relation(fields: [producto_id], references: [id], onUpdate: NoAction, map: "FK_detalle_producto")
+  compra         compra   @relation(fields: [compra_id], references: [id], onUpdate: NoAction, map: "fk_detalle_compra")
+  producto       producto @relation(fields: [producto_id], references: [id], onUpdate: NoAction, map: "fk_detalle_producto")
 }
 
 model cuota {
-  id                BigInt         @id(map: "PK_cuota") @default(autoincrement())
+  id                BigInt         @id(map: "pk_cuota") @default(autoincrement())
   compra_id         BigInt
   numero            Int            @db.SmallInt
   fecha_vencimiento DateTime       @db.Date
@@ -104,15 +104,15 @@ model cuota {
   amortizacion      Decimal        @db.Decimal(12, 2)
   monto             Decimal        @db.Decimal(12, 2)
   saldo_final       Decimal        @db.Decimal(12, 2)
-  estado            String         @default("PENDIENTE", map: "DF_cuota_estado") @db.VarChar(10)
-  compra            compra         @relation(fields: [compra_id], references: [id], onUpdate: NoAction, map: "FK_cuota_compra")
+  estado            String         @default("PENDIENTE") @db.VarChar(10)
+  compra            compra         @relation(fields: [compra_id], references: [id], onUpdate: NoAction, map: "fk_cuota_compra")
   listado_item      listado_item[]
 
-  @@unique([compra_id, numero], map: "UQ_cuota_compra_numero")
+  @@unique([compra_id, numero], map: "uq_cuota_compra_numero")
 }
 
 model listado_item {
-  id           BigInt       @id(map: "PK_listado_item") @default(autoincrement())
+  id           BigInt       @id(map: "pk_listado_item") @default(autoincrement())
   listado_id   BigInt
   compra_id    BigInt?
   cuota_id     BigInt?
@@ -124,15 +124,15 @@ model listado_item {
   interes      Decimal      @db.Decimal(12, 2)
   mora         Decimal      @db.Decimal(12, 2)
   total        Decimal      @db.Decimal(12, 2)
-  compra       compra?      @relation(fields: [compra_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_item_compra")
-  cuota        cuota?       @relation(fields: [cuota_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_item_cuota")
-  listado_pago listado_pago @relation(fields: [listado_id], references: [id], onUpdate: NoAction, map: "FK_item_listado")
+  compra       compra?      @relation(fields: [compra_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_item_compra")
+  cuota        cuota?       @relation(fields: [cuota_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_item_cuota")
+  listado_pago listado_pago @relation(fields: [listado_id], references: [id], onUpdate: NoAction, map: "fk_item_listado")
 
-  @@unique([listado_id, orden], map: "UQ_item_listado_orden")
+  @@unique([listado_id, orden], map: "uq_item_listado_orden")
 }
 
 model listado_pago {
-  id              BigInt         @id(map: "PK_listado_pago") @default(autoincrement())
+  id              BigInt         @id(map: "pk_listado_pago") @default(autoincrement())
   tienda_id       BigInt
   cliente_id      BigInt
   numero          String         @db.VarChar(20)
@@ -140,23 +140,23 @@ model listado_pago {
   fecha_pago      DateTime       @db.Date
   total_capital   Decimal        @db.Decimal(12, 2)
   total_interes   Decimal        @db.Decimal(12, 2)
-  total_mora      Decimal        @default(0, map: "DF_listado_mora") @db.Decimal(12, 2)
+  total_mora      Decimal        @default(0) @db.Decimal(12, 2)
   total           Decimal        @db.Decimal(12, 2)
-  estado          String         @default("EMITIDO", map: "DF_listado_estado") @db.VarChar(10)
+  estado          String         @default("EMITIDO") @db.VarChar(10)
   fecha_pago_real DateTime?      @db.Date
   dias_mora       Int?           @db.SmallInt
   listado_item    listado_item[]
-  cliente         cliente        @relation(fields: [cliente_id, tienda_id], references: [id, tienda_id], onUpdate: NoAction, map: "FK_listado_cliente")
-  tienda          tienda         @relation(fields: [tienda_id], references: [id], onUpdate: NoAction, map: "FK_listado_tienda")
+  cliente         cliente        @relation(fields: [cliente_id, tienda_id], references: [id, tienda_id], onUpdate: NoAction, map: "fk_listado_cliente")
+  tienda          tienda         @relation(fields: [tienda_id], references: [id], onUpdate: NoAction, map: "fk_listado_tienda")
   pago            pago?
 
-  @@unique([cliente_id, fecha_corte], map: "UQ_listado_cliente_corte")
-  @@unique([tienda_id, numero], map: "UQ_listado_tienda_numero")
+  @@unique([cliente_id, fecha_corte], map: "uq_listado_cliente_corte")
+  @@unique([tienda_id, numero], map: "uq_listado_tienda_numero")
 }
 
 model pago {
-  id               BigInt       @id(map: "PK_pago") @default(autoincrement())
-  listado_id       BigInt       @unique(map: "UQ_pago_listado")
+  id               BigInt       @id(map: "pk_pago") @default(autoincrement())
+  listado_id       BigInt       @unique(map: "uq_pago_listado")
   fecha            DateTime     @db.Date
   monto            Decimal      @db.Decimal(12, 2)
   medio_pago       String       @db.VarChar(15)
@@ -164,13 +164,13 @@ model pago {
   mora_aplicada    Decimal      @db.Decimal(12, 2)
   interes_aplicado Decimal      @db.Decimal(12, 2)
   capital_aplicado Decimal      @db.Decimal(12, 2)
-  listado_pago     listado_pago @relation(fields: [listado_id], references: [id], onUpdate: NoAction, map: "FK_pago_listado")
+  listado_pago     listado_pago @relation(fields: [listado_id], references: [id], onUpdate: NoAction, map: "fk_pago_listado")
 }
 
 model producto {
-  id              BigInt           @id(map: "PK_producto") @default(autoincrement())
+  id              BigInt           @id(map: "pk_producto") @default(autoincrement())
   tienda_id       BigInt
-  codigo          String           @db.VarChar(30)
+  codigo          String           @db.Citext
   nombre          String           @db.VarChar(120)
   marca           String?          @db.VarChar(60)
   descripcion     String?          @db.VarChar(500)
@@ -181,39 +181,39 @@ model producto {
   precio_lista    Decimal          @db.Decimal(10, 2)
   permite_fin_mes Boolean
   permite_cuotas  Boolean
-  estado          String           @default("ACTIVO", map: "DF_producto_estado") @db.VarChar(8)
+  estado          String           @default("ACTIVO") @db.VarChar(8)
   compra_detalle  compra_detalle[]
-  tienda          tienda           @relation(fields: [tienda_id], references: [id], onUpdate: NoAction, map: "FK_producto_tienda")
+  tienda          tienda           @relation(fields: [tienda_id], references: [id], onUpdate: NoAction, map: "fk_producto_tienda")
 
-  @@unique([tienda_id, codigo], map: "UQ_producto_tienda_codigo")
+  @@unique([tienda_id, codigo], map: "uq_producto_tienda_codigo")
 }
 
 model tienda {
-  id               BigInt         @id(map: "PK_tienda") @default(autoincrement())
+  id               BigInt         @id(map: "pk_tienda") @default(autoincrement())
   duenio_id        BigInt
-  ruc              String         @unique(map: "UQ_tienda_ruc") @db.Char(11)
+  ruc              String         @unique(map: "uq_tienda_ruc") @db.Char(11)
   razon_social     String         @db.VarChar(150)
   nombre_comercial String         @db.VarChar(100)
   giro             String         @db.VarChar(40)
   direccion        String?        @db.VarChar(200)
   telefono         String?        @db.VarChar(15)
   cok_tea          Decimal        @db.Decimal(12, 9)
-  estado           String         @default("ACTIVO", map: "DF_tienda_estado") @db.VarChar(8)
+  estado           String         @default("ACTIVO") @db.VarChar(8)
   auditoria        auditoria[]
   cliente          cliente[]
   compra           compra[]
   listado_pago     listado_pago[]
   producto         producto[]
-  usuario          usuario        @relation(fields: [duenio_id], references: [id], onUpdate: NoAction, map: "FK_tienda_usuario")
+  usuario          usuario        @relation(fields: [duenio_id], references: [id], onUpdate: NoAction, map: "fk_tienda_usuario")
 }
 
 model usuario {
-  id            BigInt      @id(map: "PK_usuario") @default(autoincrement())
+  id            BigInt      @id(map: "pk_usuario") @default(autoincrement())
   perfil        String      @db.VarChar(15)
-  username      String      @unique(map: "UQ_usuario_username") @db.VarChar(120)
+  username      String      @unique(map: "uq_usuario_username") @db.Citext
   password_hash String      @db.VarChar(255)
   nombres       String      @db.VarChar(160)
-  estado        String      @default("ACTIVO", map: "DF_usuario_estado") @db.VarChar(8)
+  estado        String      @default("ACTIVO") @db.VarChar(8)
   auditoria     auditoria[]
   cliente       cliente[]
   tienda        tienda[]

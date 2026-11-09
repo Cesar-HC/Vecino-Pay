@@ -91,7 +91,7 @@ export async function detalleListado(bd: Ambito, id: bigint, clienteId: bigint |
       estado: { not: 'ANULADA' },
       fecha_hora: { gte: aFechaBd(deFechaBd(l.fecha_corte)), lt: aFechaBd(sumarDias(deFechaBd(l.fecha_corte), 1)) },
     },
-    orderBy: { fecha_hora: 'asc' },
+    orderBy: [{ fecha_hora: 'asc' }, { id: 'asc' }],
   });
   const pagado = l.estado === 'PAGADO';
   const liquidacion = pagado
@@ -159,9 +159,10 @@ export async function detalleListado(bd: Ambito, id: bigint, clienteId: bigint |
 async function suTrasPago(bd: Ambito, l: listado_pago) {
   const compras = await bd.compra.findMany({
     where: { cliente_id: l.cliente_id, estado: 'PENDIENTE' },
+    orderBy: { id: 'asc' },
     include: { cuota: true },
   });
-  const items = await bd.listado_item.findMany({ where: { listado_id: l.id } });
+  const items = await bd.listado_item.findMany({ where: { listado_id: l.id }, orderBy: { orden: 'asc' } });
   const comprasPagadas = new Set(items.map((i) => i.compra_id).filter(Boolean));
   const cuotasPagadas = new Set(items.map((i) => i.cuota_id).filter(Boolean));
   const simuladas: CompraParaSu[] = compras
@@ -256,7 +257,7 @@ export class ListadosService {
 
   async pagar(c: ContextoDueno, id: bigint, d: PagoDto) {
     const resultado = await this.registrarPago(c, id, d).catch((e) => {
-      // Último recurso: UQ_pago_listado, si dos pagos pasaran el bloqueo.
+      // Último recurso: uq_pago_listado, si dos pagos pasaran el bloqueo.
       if (restriccionUnica(e)) throw new ErrorNegocio(409, 'LISTADO_YA_PAGADO', 'Este listado ya está pagado.');
       throw e;
     });

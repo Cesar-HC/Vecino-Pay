@@ -14,10 +14,10 @@ import {
 
 const sql = readFileSync(join(__dirname, '../../../db/init/02_semillas.sql'), 'utf8');
 
-/** Valor literal de un DECLARE @nombre del archivo de semillas. */
+/** Valor literal de una constante declarada en el archivo de semillas. */
 function literal(nombre: string): string {
-  const m = new RegExp(`DECLARE @${nombre}\\s+DECIMAL\\(\\d+,\\d+\\) = ([0-9.]+);`).exec(sql);
-  if (!m) throw new Error(`No se encontró @${nombre} en 02_semillas.sql`);
+  const m = new RegExp(`${nombre}\\s+CONSTANT NUMERIC\\(\\d+,\\d+\\) := ([0-9.]+);`).exec(sql);
+  if (!m) throw new Error(`No se encontró ${nombre} en 02_semillas.sql`);
   return m[1];
 }
 
@@ -34,7 +34,7 @@ describe('Tiendas de demostración', () => {
     expect(inicio).toBeGreaterThan(0);
     const lote = sql.slice(inicio);
     for (const tabla of ['cliente', 'compra', 'compra_detalle', 'cuota', 'listado_pago', 'listado_item', 'pago']) {
-      expect(lote).not.toContain(`INSERT INTO dbo.${tabla} `);
+      expect(lote).not.toContain(`INSERT INTO ${tabla} `);
     }
   });
 });
@@ -61,7 +61,7 @@ describe('Las semillas coinciden con el motor', () => {
     });
     expect(literal('tcea_maria')).toBe(cuantizarTasa(s.indicadores.tcea, 10).toFixed(10));
     expect(sql).toContain(
-      `3, ${s.plan.g}, ${s.plan.capitalCapitalizado.toFixed(2)}, @tem_maria, ${s.plan.cuotaFija.toFixed(2)}, @tcea_maria, ${s.indicadores.van.toFixed(2)}`,
+      `3, ${s.plan.g}, ${s.plan.capitalCapitalizado.toFixed(2)}, tem_maria, ${s.plan.cuotaFija.toFixed(2)}, tcea_maria, ${s.indicadores.van.toFixed(2)}`,
     );
     for (const f of s.plan.filas) {
       const importes = [f.interes, f.amortizacion, f.cuota].map(monto).join(', ');
@@ -74,7 +74,7 @@ describe('Las semillas coinciden con el motor', () => {
   it('fechas de ciclo y líneas del listado de cada compra a fin de mes', () => {
     const tedLuis = literal('ted_luis');
     const compra =
-      /\(@tienda, @luis, '(T-\d+)', '(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})', 'FIN_MES', ([\d.]+), [\d.]+, '([\d-]+)', '([\d-]+)'\)/g;
+      /\(v_tienda, v_luis, '(T-\d+)', '(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})', 'FIN_MES', ([\d.]+), [\d.]+, '([\d-]+)', '([\d-]+)'\)/g;
     let revisadas = 0;
     for (const [, ticket, fecha, hora, capital, fechaCorte, fechaPago] of sql.matchAll(compra)) {
       const fechaOperativa = fechaOperativaLocal(fecha, hora);

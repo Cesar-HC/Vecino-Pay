@@ -437,24 +437,24 @@ describe('límite de intentos, con la guardia real', () => {
 });
 
 describe('permisos del usuario de la API (13.6)', () => {
-  const sa = new PrismaClient({ datasourceUrl: process.env.URL_SA_PRUEBAS });
-  afterAll(() => sa.$disconnect());
+  const dueno = new PrismaClient({ datasourceUrl: process.env.URL_OWNER_PRUEBAS });
+  afterAll(() => dueno.$disconnect());
 
   it('no puede alterar el esquema ni borrar en ninguna tabla', async () => {
     const tablas = ['usuario', 'tienda', 'producto', 'cliente', 'compra', 'compra_detalle', 'cuota', 'listado_pago', 'listado_item', 'pago', 'auditoria'];
     const filas = await p.bd.auditoria.count();
     for (const tabla of tablas) {
-      await expect(p.bd.$executeRawUnsafe(`DELETE FROM dbo.${tabla}`)).rejects.toThrow(/229|DELETE permission/i);
+      await expect(p.bd.$executeRawUnsafe(`DELETE FROM ${tabla}`)).rejects.toThrow(/42501|permission denied|permiso denegado/i);
     }
-    await expect(p.bd.$executeRawUnsafe('TRUNCATE TABLE dbo.auditoria')).rejects.toThrow(/1088|permission/i);
-    await expect(p.bd.$executeRawUnsafe('ALTER TABLE dbo.auditoria ADD x INT')).rejects.toThrow(/permission|1088|4902/i);
-    await expect(p.bd.$executeRawUnsafe('DISABLE TRIGGER TR_auditoria_solo_insercion ON dbo.auditoria')).rejects.toThrow();
-    await expect(p.bd.$executeRawUnsafe("UPDATE dbo.auditoria SET detalle = 'x'")).rejects.toThrow(/229|UPDATE permission/i);
+    await expect(p.bd.$executeRawUnsafe('TRUNCATE TABLE auditoria')).rejects.toThrow(/42501|permission denied|permiso denegado/i);
+    await expect(p.bd.$executeRawUnsafe('ALTER TABLE auditoria ADD COLUMN x INT')).rejects.toThrow(/42501|must be owner|debe ser due|permission denied|permiso denegado/i);
+    await expect(p.bd.$executeRawUnsafe('ALTER TABLE auditoria DISABLE TRIGGER tr_auditoria_solo_insercion')).rejects.toThrow(/42501|must be owner|debe ser due|permission denied|permiso denegado/i);
+    await expect(p.bd.$executeRawUnsafe("UPDATE auditoria SET detalle = 'x'")).rejects.toThrow(/42501|permission denied|permiso denegado/i);
     expect(await p.bd.auditoria.count()).toBe(filas);
   });
 
   it('los 3 triggers siguen habilitados', async () => {
-    const r = await sa.$queryRaw<{ activos: number }[]>`SELECT COUNT(*) AS activos FROM sys.triggers WHERE is_disabled = 0 AND name LIKE 'TR[_]%'`;
+    const r = await dueno.$queryRaw<{ activos: number }[]>`SELECT COUNT(*) AS activos FROM pg_trigger WHERE NOT tgisinternal AND tgenabled <> 'D' AND tgname LIKE 'tr_%'`;
     expect(Number(r[0].activos)).toBe(3);
   });
 });

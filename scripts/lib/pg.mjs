@@ -29,28 +29,61 @@ export const cfg = () => ({
 });
 
 export function ubicarPsql() {
-  const candidatos = [process.env.PSQL_BIN, 'psql', 'C:\\Program Files\\PostgreSQL\\17\\bin\\psql.exe'].filter(Boolean);
+  const candidatos = [
+    process.env.PSQL_BIN,
+    'psql',
+    'C:\\Program Files\\PostgreSQL\\17\\bin\\psql.exe',
+  ].filter(Boolean);
   for (const c of candidatos) {
     const r = spawnSync(c, ['--version'], { encoding: 'utf8' });
     if (!r.error && r.status === 0) return c;
   }
-  throw new Error('No se encontró psql. Define PSQL_BIN en .env (por ejemplo C:\\Program Files\\PostgreSQL\\17\\bin\\psql.exe).');
+  throw new Error(
+    'No se encontró psql. Define PSQL_BIN en .env (por ejemplo C:\\Program Files\\PostgreSQL\\17\\bin\\psql.exe).',
+  );
 }
 
 /**
  * Ejecuta psql. `archivo` o `sql`; `vars` son variables de psql (-v nombre=valor).
  * `clave === undefined` deja que psql pregunte en la terminal (stdio heredado).
  */
-export function psql({ db = 'postgres', usuario, clave, archivo, sql, vars = {}, silencioso = false, interactivo = false, avisos = false }) {
+export function psql({
+  db = 'postgres',
+  usuario,
+  clave,
+  archivo,
+  sql,
+  vars = {},
+  silencioso = false,
+  interactivo = false,
+  avisos = false,
+}) {
   const c = cfg();
-  const args = ['-X', '-v', 'ON_ERROR_STOP=1', '-h', c.host, '-p', c.puerto, '-U', usuario, '-d', db, '-q'];
+  const args = [
+    '-X',
+    '-v',
+    'ON_ERROR_STOP=1',
+    '-h',
+    c.host,
+    '-p',
+    c.puerto,
+    '-U',
+    usuario,
+    '-d',
+    db,
+    '-q',
+  ];
   if (silencioso) args.push('-t', '-A');
   for (const [k, v] of Object.entries(vars)) args.push('-v', `${k}=${v}`);
   if (archivo) args.push('-f', archivo);
   if (sql) args.push('-c', sql);
   const env = { ...process.env, PGCLIENTENCODING: 'UTF8' };
   if (clave !== undefined) env.PGPASSWORD = clave;
-  const r = spawnSync(ubicarPsql(), args, { env, encoding: 'utf8', stdio: interactivo ? 'inherit' : 'pipe' });
+  const r = spawnSync(ubicarPsql(), args, {
+    env,
+    encoding: 'utf8',
+    stdio: interactivo ? 'inherit' : 'pipe',
+  });
   if (r.error) throw r.error;
   if (r.status !== 0) {
     throw new Error(`psql falló (${archivo ?? sql}):\n${(r.stderr || '').trim()}`);
@@ -64,24 +97,35 @@ const PROHIBIDAS = new Set(['postgres', 'template0', 'template1']);
 const comoDueno = () => ({ usuario: cfg().dueno, clave: cfg().claveDueno });
 
 export const existeBd = (nombre) =>
-  psql({ ...comoDueno(), sql: `SELECT 1 FROM pg_database WHERE datname = '${nombre.replace(/'/g, "''")}'`, silencioso: true }) === '1';
+  psql({
+    ...comoDueno(),
+    sql: `SELECT 1 FROM pg_database WHERE datname = '${nombre.replace(/'/g, "''")}'`,
+    silencioso: true,
+  }) === '1';
 
 export function crearBd(nombre) {
   if (PROHIBIDAS.has(nombre)) throw new Error(`Nombre de base no permitido: ${nombre}`);
-  psql({ ...comoDueno(), archivo: join(RAIZ, 'db', 'crear_bd.sql'), vars: { db_name: nombre, app_user: cfg().app } });
+  psql({
+    ...comoDueno(),
+    archivo: join(RAIZ, 'db', 'crear_bd.sql'),
+    vars: { db_name: nombre, app_user: cfg().app },
+  });
 }
 
 /** Solo borra bases desechables de pruebas (vecinopay_test, vecinopay_e2e...). */
 export function borrarBdDesechable(nombre) {
   if (!NOMBRE_BD_DESECHABLE.test(nombre) || PROHIBIDAS.has(nombre)) {
-    throw new Error(`Solo se pueden borrar bases desechables (vecinopay_test o vecinopay_e2e). Recibido: ${nombre}`);
+    throw new Error(
+      `Solo se pueden borrar bases desechables (vecinopay_test o vecinopay_e2e). Recibido: ${nombre}`,
+    );
   }
   psql({ ...comoDueno(), sql: `DROP DATABASE IF EXISTS "${nombre}" WITH (FORCE)` });
 }
 
 /** Borra la base de desarrollo: solo desde `db:recrear -- --confirmar`. */
 export function borrarBdDesarrollo(nombre) {
-  if (PROHIBIDAS.has(nombre) || !/^[a-z0-9_]+$/.test(nombre)) throw new Error(`Nombre de base no permitido: ${nombre}`);
+  if (PROHIBIDAS.has(nombre) || !/^[a-z0-9_]+$/.test(nombre))
+    throw new Error(`Nombre de base no permitido: ${nombre}`);
   psql({ ...comoDueno(), sql: `DROP DATABASE IF EXISTS "${nombre}" WITH (FORCE)` });
 }
 
@@ -90,11 +134,21 @@ export function inicializar(nombre) {
   for (const f of ['01_esquema.sql', '02_semillas.sql']) {
     psql({ ...comoDueno(), db: nombre, archivo: join(RAIZ, 'db', 'init', f) });
   }
-  psql({ ...comoDueno(), db: nombre, archivo: join(RAIZ, 'db', 'init', '03_usuario_app.sql'), vars: { app_user: c.app } });
+  psql({
+    ...comoDueno(),
+    db: nombre,
+    archivo: join(RAIZ, 'db', 'init', '03_usuario_app.sql'),
+    vars: { app_user: c.app },
+  });
 }
 
 export function verificar(nombre) {
-  return psql({ ...comoDueno(), db: nombre, archivo: join(RAIZ, 'db', 'verificar_semillas.sql'), avisos: true });
+  return psql({
+    ...comoDueno(),
+    db: nombre,
+    archivo: join(RAIZ, 'db', 'verificar_semillas.sql'),
+    avisos: true,
+  });
 }
 
 const cod = (s) => encodeURIComponent(s);

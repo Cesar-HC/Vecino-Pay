@@ -1,7 +1,16 @@
 // Línea de comandos de la base de datos de VecinoPay (PostgreSQL local, sin Docker).
 //   node scripts/db.mjs roles | crear | iniciar | recrear --confirmar | verificar | estado
 import { join } from 'node:path';
-import { RAIZ, borrarBdDesarrollo, cfg, crearBd, existeBd, inicializar, psql, verificar } from './lib/pg.mjs';
+import {
+  RAIZ,
+  borrarBdDesarrollo,
+  cfg,
+  crearBd,
+  existeBd,
+  inicializar,
+  psql,
+  verificar,
+} from './lib/pg.mjs';
 
 const [, , orden, ...resto] = process.argv;
 const c = cfg();
@@ -15,7 +24,9 @@ function exigirClaves() {
 const ordenes = {
   roles() {
     exigirClaves();
-    console.log(`Crea los roles ${c.dueno} y ${c.app}. psql pedirá la contraseña del superusuario postgres.`);
+    console.log(
+      `Crea los roles ${c.dueno} y ${c.app}. psql pedirá la contraseña del superusuario postgres.`,
+    );
     console.log('(O define $env:PGPASSWORD en esta terminal para no escribirla.)');
     psql({
       usuario: process.env.PGSUPERUSER || 'postgres',
@@ -46,7 +57,9 @@ const ordenes = {
   recrear() {
     exigirClaves();
     if (!resto.includes('--confirmar')) {
-      console.error(`Esto BORRA la base "${c.bd}" y todos sus datos. Repite con: npm run db:recrear -- --confirmar`);
+      console.error(
+        `Esto BORRA la base "${c.bd}" y todos sus datos. Repite con: npm run db:recrear -- --confirmar`,
+      );
       process.exit(1);
     }
     console.log(`Borrando y recreando ${c.bd}...`);
@@ -63,22 +76,34 @@ const ordenes = {
 
   estado() {
     exigirClaves();
-    const q = (db, sql) => psql({ usuario: c.dueno, clave: c.claveDueno, db, sql, silencioso: true });
+    const q = (db, sql) =>
+      psql({ usuario: c.dueno, clave: c.claveDueno, db, sql, silencioso: true });
     console.log('Servidor:', q('postgres', 'SHOW server_version'));
     console.log('Zona del servidor:', q('postgres', 'SHOW timezone'));
     if (!existeBd(c.bd)) {
       console.log(`La base ${c.bd} no existe. Ejecuta: npm run db:crear`);
       return;
     }
-    console.log('Base:', q('postgres', `SELECT datname || ' | codificacion ' || pg_encoding_to_char(encoding) || ' | proveedor ' || datlocprovider::text || ' | ' || coalesce(datlocale, datcollate) FROM pg_database WHERE datname = '${c.bd}'`));
-    console.log('Tablas:', q(c.bd, "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'"));
+    console.log(
+      'Base:',
+      q(
+        'postgres',
+        `SELECT datname || ' | codificacion ' || pg_encoding_to_char(encoding) || ' | proveedor ' || datlocprovider::text || ' | ' || coalesce(datlocale, datcollate) FROM pg_database WHERE datname = '${c.bd}'`,
+      ),
+    );
+    console.log(
+      'Tablas:',
+      q(c.bd, "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'"),
+    );
     console.log('Hora de Lima:', q(c.bd, "SELECT now() AT TIME ZONE 'America/Lima'"));
   },
 };
 
 try {
   if (!ordenes[orden]) {
-    console.error('Uso: node scripts/db.mjs roles | crear | iniciar | recrear --confirmar | verificar | estado');
+    console.error(
+      'Uso: node scripts/db.mjs roles | crear | iniciar | recrear --confirmar | verificar | estado',
+    );
     process.exit(1);
   }
   ordenes[orden]();

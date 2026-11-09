@@ -75,7 +75,7 @@ beforeAll(async () => {
 
 afterAll(() => prisma.$disconnect());
 
-describe('paso 0: Prisma sobre SQL Server', () => {
+describe('paso 0: Prisma sobre PostgreSQL', () => {
   it('S2: decimales exactos', async () => {
     const c = await prisma.cliente.findUniqueOrThrow({ where: { id: clienteId } });
     expect(c.ted.toFixed()).toBe('0.001032653810255');
@@ -127,7 +127,7 @@ describe('paso 0: Prisma sobre SQL Server', () => {
     };
     await expect(prisma.compra_detalle.createMany({ data: [fila] })).resolves.toEqual({ count: 1 });
     await expect(prisma.compra_detalle.createMany({ data: [{ ...fila, producto_id: productoAjenoId }] })).rejects.toThrow(
-      /misma tienda|50002/i,
+      /misma tienda/i,
     );
     const conCreate = await prisma.compra_detalle.create({ data: fila }).then(
       () => 'pasa',
@@ -173,7 +173,7 @@ describe('paso 0: Prisma sobre SQL Server', () => {
     expect(r.count).toBe(1);
   });
 
-  it('S8: extensión dentro de una transacción y UPDLOCK que hace esperar', async () => {
+  it('S8: extensión dentro de una transacción y FOR NO KEY UPDATE que hace esperar', async () => {
     const ambito = prisma.$extends({
       query: {
         cliente: {
@@ -188,7 +188,7 @@ describe('paso 0: Prisma sobre SQL Server', () => {
     expect(vistos).toHaveLength(0);
 
     const bloqueo = (t: Prisma.TransactionClient) =>
-      t.$queryRaw`SELECT id FROM dbo.cliente WITH (UPDLOCK, ROWLOCK) WHERE id = ${clienteId}`;
+      t.$queryRaw`SELECT id FROM cliente WHERE id = ${clienteId} FOR NO KEY UPDATE`;
     let soltar: () => void = () => undefined;
     let avisar: () => void = () => undefined;
     const tomado = new Promise<void>((r) => (avisar = r));
@@ -210,11 +210,11 @@ describe('paso 0: Prisma sobre SQL Server', () => {
 
   it('S9: el usuario de la API no borra ni altera la auditoría', async () => {
     const filas = await prisma.auditoria.count();
-    await expect(prisma.$executeRawUnsafe('TRUNCATE TABLE dbo.auditoria')).rejects.toThrow();
-    await expect(prisma.$executeRawUnsafe('DELETE FROM dbo.auditoria')).rejects.toThrow();
-    await expect(prisma.$executeRawUnsafe("UPDATE dbo.auditoria SET detalle = 'x'")).rejects.toThrow();
-    await expect(prisma.$executeRawUnsafe('DISABLE TRIGGER TR_auditoria_solo_insercion ON dbo.auditoria')).rejects.toThrow();
-    await expect(prisma.$executeRawUnsafe('DELETE FROM dbo.producto')).rejects.toThrow();
+    await expect(prisma.$executeRawUnsafe('TRUNCATE TABLE auditoria')).rejects.toThrow();
+    await expect(prisma.$executeRawUnsafe('DELETE FROM auditoria')).rejects.toThrow();
+    await expect(prisma.$executeRawUnsafe("UPDATE auditoria SET detalle = 'x'")).rejects.toThrow();
+    await expect(prisma.$executeRawUnsafe('ALTER TABLE auditoria DISABLE TRIGGER tr_auditoria_solo_insercion')).rejects.toThrow();
+    await expect(prisma.$executeRawUnsafe('DELETE FROM producto')).rejects.toThrow();
     expect(await prisma.auditoria.count()).toBe(filas);
   });
 });

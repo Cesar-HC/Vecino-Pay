@@ -5,11 +5,12 @@ import { CLAVE_PUBLICO } from '../../src/comun/utilidades';
 import { detalleParaAdmin, armarDetalle } from '../../src/auditoria/detalle';
 import { crearAmbito, FueraDeAmbito, MODELOS_DIRECTOS, MODELOS_GLOBALES, MODELOS_HEREDADOS, ClienteBd } from '../../src/bd/ambito-tienda';
 import { aDecBd, aInstanteBd, dePartesBd } from '../../src/bd/conversiones';
+import { restriccionUnica } from '../../src/bd/errores-bd';
 import { leerEnv } from '../../src/config/cargar-env';
 import { cargarConfiguracion, ConfiguracionInvalida } from '../../src/config/configuracion';
 import { RelojFijo } from '../../src/reloj/reloj';
 
-const URL_OK = 'sqlserver://db:1433;database=VecinoPay;user=vecinopay_app;password=OtraClave#99';
+const URL_OK = 'postgresql://vecinopay_app:OtraClave99@127.0.0.1:5432/vecinopay?schema=public';
 const SECRETO = 'x'.repeat(40);
 
 const problemas = (env: Record<string, string>) => {
@@ -31,17 +32,18 @@ describe('configuración', () => {
       NODE_ENV: 'production',
       JWT_SECRET: 'corto',
       RELOJ_FIJO: '2026-09-22T12:00:00-05:00',
-      DATABASE_URL: 'sqlserver://db;user=vecinopay_app;password=VecinoApp#2026',
+      DATABASE_URL: 'postgresql://vecinopay_app:VecinoApp2026dev@127.0.0.1:5432/vecinopay',
     });
     expect(p).toHaveLength(3);
   });
-  it('uid=sa y username=sa también se rechazan; el secreto conocido avisa en desarrollo', () => {
-    expect(problemas({ NODE_ENV: 'test', JWT_SECRET: 'a', DATABASE_URL: 'sqlserver://db;uid=sa;password=x' })).toHaveLength(1);
-    expect(problemas({ NODE_ENV: 'test', JWT_SECRET: 'a', DATABASE_URL: 'sqlserver://db;username=sa;password=x' })).toHaveLength(1);
+  it('postgres y el dueño de la base también se rechazan; el secreto conocido avisa en desarrollo', () => {
+    expect(problemas({ NODE_ENV: 'test', JWT_SECRET: 'a', DATABASE_URL: 'postgresql://postgres:x@127.0.0.1:5432/vecinopay' })).toHaveLength(1);
+    expect(problemas({ NODE_ENV: 'test', JWT_SECRET: 'a', DATABASE_URL: 'postgresql://vecinopay_owner:x@127.0.0.1:5432/vecinopay' })).toHaveLength(1);
     expect(cargarConfiguracion({ NODE_ENV: 'development', JWT_SECRET: 'cambia-este-secreto', DATABASE_URL: URL_OK }).avisos).toHaveLength(1);
   });
-  it('user=sa se rechaza en todo entorno', () => {
-    expect(problemas({ NODE_ENV: 'development', JWT_SECRET: 'a', DATABASE_URL: 'sqlserver://db;user=sa;password=x' })).toHaveLength(1);
+  it('una URL que no es de PostgreSQL o no se puede leer se rechaza en todo entorno', () => {
+    expect(problemas({ NODE_ENV: 'development', JWT_SECRET: 'a', DATABASE_URL: 'sqlserver://db;user=x;password=x' })).toHaveLength(1);
+    expect(problemas({ NODE_ENV: 'development', JWT_SECRET: 'a', DATABASE_URL: 'esto no es una url' })).toHaveLength(1);
   });
   it('desarrollo acepta el secreto por defecto y el reloj fijo', () => {
     const c = cargarConfiguracion({
@@ -183,5 +185,27 @@ describe('ámbito de tienda', () => {
     expect(() => ambito.cliente.deleteMany()).toThrow(FueraDeAmbito);
     expect(() => ambito.compra_detalle.create({ data: {} as never })).toThrow(FueraDeAmbito);
     expect(() => ambito.listado_item.create({ data: {} as never })).toThrow(FueraDeAmbito);
+  });
+});
+
+describe('restriccionUnica', () => {
+  const error = (meta: Record<string, unknown>, code = 'P2002') =>
+    new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code, clientVersion: 'x', meta });
+
+  it('usa el nombre del modelo cuando Prisma lo informa', () => {
+    expect(restriccionUnica(error({ modelName: 'usuario', target: ['username'] }))).toBe('usuario');
+    expect(restriccionUnica(error({ modelName: 'producto', target: ['tienda_id', 'codigo'] }))).toBe('producto');
+  });
+  it('sin modelo, deduce la tabla por las columnas o el nombre del índice', () => {
+    expect(restriccionUnica(error({ target: ['username'] }))).toBe('usuario');
+    expect(restriccionUnica(error({ target: 'uq_tienda_ruc' }))).toBe('tienda');
+    expect(restriccionUnica(error({ target: ['tienda_id', 'codigo'] }))).toBe('producto');
+    expect(restriccionUnica(error({ target: ['cliente_id', 'fecha_corte'] }))).toBe('listado_pago');
+    expect(restriccionUnica(error({ target: ['listado_id'] }))).toBe('pago');
+  });
+  it('un P2002 desconocido devuelve el texto y otros errores devuelven null', () => {
+    expect(restriccionUnica(error({ target: ['otra_cosa'] }))).toBe('otra_cosa');
+    expect(restriccionUnica(error({}, 'P2025'))).toBeNull();
+    expect(restriccionUnica(new Error('x'))).toBeNull();
   });
 });

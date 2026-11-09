@@ -31,10 +31,11 @@ export class NegocioService {
     const bd = this.bd.enTienda(c.tiendaId);
     const p = partesLima(this.reloj.ahora());
     const hoy = fechaOperativaLocal(p.fecha, p.hora);
-    const clientes = await bd.cliente.findMany();
-    const listados = await bd.listado_pago.findMany();
+    const clientes = await bd.cliente.findMany({ orderBy: { id: 'asc' } });
+    const listados = await bd.listado_pago.findMany({ orderBy: { id: 'asc' } });
     const compras = await bd.compra.findMany({
       where: { estado: { not: 'ANULADA' } },
+      orderBy: { id: 'asc' },
       include: { cuota: true, compra_detalle: { include: { producto: true } }, listado_item: true },
     });
     const items = await bd.listado_item.findMany({ where: { cuota_id: { not: null } }, select: { cuota_id: true } });

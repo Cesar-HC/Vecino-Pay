@@ -63,7 +63,7 @@ export class PlataformaService {
     const where: Prisma.tiendaWhereInput = {
       estado: f.estado,
       ...(f.texto
-        ? { OR: [{ nombre_comercial: { contains: f.texto } }, { razon_social: { contains: f.texto } }, { ruc: { contains: f.texto } }] }
+        ? { OR: [{ nombre_comercial: { contains: f.texto, mode: 'insensitive' as const } }, { razon_social: { contains: f.texto, mode: 'insensitive' as const } }, { ruc: { contains: f.texto, mode: 'insensitive' as const } }] }
         : {}),
     };
     const items = await this.bd.global().tienda.findMany({ where, include: { usuario: true }, orderBy: { id: 'asc' }, ...paginar(f) });
@@ -203,7 +203,7 @@ export class PlataformaService {
     const lista = tiendas.map((t) => ({ id: aId(t.id), nombreComercial: t.nombre_comercial }));
     const acceso = await bd.auditoria.findFirst({
       where: { usuario_id: u.id, accion: 'LOGIN' },
-      orderBy: { fecha_hora: 'desc' },
+      orderBy: [{ fecha_hora: 'desc' }, { id: 'desc' }],
     });
     return {
       id: aId(u.id),
@@ -222,7 +222,7 @@ export class PlataformaService {
     const where: Prisma.usuarioWhereInput = {
       perfil: f.perfil,
       AND: [
-        ...(f.texto ? [{ OR: [{ username: { contains: f.texto } }, { nombres: { contains: f.texto } }] }] : []),
+        ...(f.texto ? [{ OR: [{ username: { contains: f.texto, mode: 'insensitive' as const } }, { nombres: { contains: f.texto, mode: 'insensitive' as const } }] }] : []),
         ...(tiendaId ? [{ OR: [{ tienda: { some: { id: tiendaId } } }, { cliente: { some: { tienda_id: tiendaId } } }] }] : []),
       ],
     };

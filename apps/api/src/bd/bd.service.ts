@@ -59,13 +59,13 @@ export class BdService {
             tiendaId,
             tienda: () => tx.tienda.findUniqueOrThrow({ where: { id: tiendaId } }),
             bloquearTienda: async () => {
-              await tx.$queryRaw`SELECT id FROM dbo.tienda WITH (UPDLOCK, ROWLOCK) WHERE id = ${tiendaId}`;
+              await tx.$queryRaw`SELECT id FROM tienda WHERE id = ${tiendaId} FOR NO KEY UPDATE`;
             },
             bloquearCliente: async (id) => {
-              await tx.$queryRaw`SELECT id FROM dbo.cliente WITH (UPDLOCK, ROWLOCK) WHERE id = ${id} AND tienda_id = ${tiendaId}`;
+              await tx.$queryRaw`SELECT id FROM cliente WHERE id = ${id} AND tienda_id = ${tiendaId} FOR NO KEY UPDATE`;
             },
             bloquearListado: async (id) => {
-              await tx.$queryRaw`SELECT id FROM dbo.listado_pago WITH (UPDLOCK, ROWLOCK) WHERE id = ${id} AND tienda_id = ${tiendaId}`;
+              await tx.$queryRaw`SELECT id FROM listado_pago WHERE id = ${id} AND tienda_id = ${tiendaId} FOR NO KEY UPDATE`;
             },
             ahora: () => partesLima(this.reloj.ahora()),
             auditar: (e) => this.auditarEn(tx, { ...e, tiendaId }),
@@ -82,7 +82,7 @@ export class BdService {
 
   /** Para la activación, que aún no conoce la tienda antes de encontrar al cliente. */
   async bloquearClienteEn(tx: ClienteBd, clienteId: bigint): Promise<void> {
-    await tx.$queryRaw`SELECT id FROM dbo.cliente WITH (UPDLOCK, ROWLOCK) WHERE id = ${clienteId}`;
+    await tx.$queryRaw`SELECT id FROM cliente WHERE id = ${clienteId} FOR NO KEY UPDATE`;
   }
 
   /** La fecha_hora sale del reloj, para que los filtros de A02 y A05 coincidan con la fecha de la demo. */
@@ -107,7 +107,7 @@ export class BdService {
       } catch (e) {
         const interbloqueo =
           e instanceof Prisma.PrismaClientKnownRequestError &&
-          (e.code === 'P2034' || e.message.includes('deadlock'));
+          (e.code === 'P2034' || e.message.includes('deadlock') || e.message.includes('could not serialize'));
         if (!interbloqueo || intento >= 3) throw e;
       }
     }

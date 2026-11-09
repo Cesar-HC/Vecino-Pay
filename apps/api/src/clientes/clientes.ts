@@ -84,7 +84,7 @@ export function calcularTasaCliente(t: TasaDto) {
     tipo: t.tipo,
     valor: t.valor,
     plazo: t.plazo,
-    // Nominal sin capitalización: 1 (6.3c), porque CK_cliente_capitalizacion no admite NULL en nominales.
+    // Nominal sin capitalización: 1 (6.3c), porque ck_cliente_capitalizacion no admite NULL en nominales.
     capitalizacion: t.tipo === 'NOMINAL' ? (t.capitalizacion ?? 1) : null,
   };
   validarTasa(pactada);
@@ -95,6 +95,7 @@ export function calcularTasaCliente(t: TasaDto) {
 export async function comprasParaSu(bd: Ambito, clienteId: bigint): Promise<CompraParaSu[]> {
   const compras = await bd.compra.findMany({
     where: { cliente_id: clienteId, estado: 'PENDIENTE' },
+    orderBy: { id: 'asc' },
     include: { cuota: true },
   });
   return compras.map((c) => ({
@@ -165,7 +166,7 @@ export class ClientesService {
     const where = {
       estado: f.estado,
       ...(f.texto
-        ? { OR: [{ dni: { contains: f.texto } }, { nombres: { contains: f.texto } }, { apellidos: { contains: f.texto } }] }
+        ? { OR: [{ dni: { contains: f.texto, mode: 'insensitive' as const } }, { nombres: { contains: f.texto, mode: 'insensitive' as const } }, { apellidos: { contains: f.texto, mode: 'insensitive' as const } }] }
         : {}),
     };
     const filas = await bd.cliente.findMany({ where, orderBy: { id: 'asc' }, ...paginar(f) });
@@ -179,11 +180,12 @@ export class ClientesService {
     const x = await bd.cliente.findFirst({ where: { id } });
     if (!x) throw noExiste('El cliente');
     const su = calcularSu(await comprasParaSu(bd, id));
-    const listados = await bd.listado_pago.findMany({ where: { cliente_id: id, estado: { not: 'PAGADO' } } });
+    const listados = await bd.listado_pago.findMany({ where: { cliente_id: id, estado: { not: 'PAGADO' } }, orderBy: { id: 'asc' } });
     const p = partesLima(this.reloj.ahora());
     const hoy = fechaOperativaLocal(p.fecha, p.hora);
     const compras = await bd.compra.findMany({
       where: { cliente_id: id, estado: 'PENDIENTE' },
+      orderBy: { id: 'asc' },
       include: { cuota: { include: { listado_item: true } }, listado_item: true },
     });
     const deuda = calcularDeuda({

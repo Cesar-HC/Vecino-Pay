@@ -30,8 +30,11 @@ export class Prueba {
 
   /** conIntentos: deja activo el límite de intentos; solo la prueba que lo evalúa lo necesita. */
   async iniciar(conIntentos = false) {
-    let armado = Test.createTestingModule({ imports: [AppModule, DiscoveryModule] }).overrideProvider(RELOJ).useValue(this.reloj);
-    if (!conIntentos) armado = armado.overrideGuard(GuardIntentos).useValue({ canActivate: () => true });
+    let armado = Test.createTestingModule({ imports: [AppModule, DiscoveryModule] })
+      .overrideProvider(RELOJ)
+      .useValue(this.reloj);
+    if (!conIntentos)
+      armado = armado.overrideGuard(GuardIntentos).useValue({ canActivate: () => true });
     const modulo = await armado.compile();
     this.app = modulo.createNestApplication();
     configurarApp(this.app);

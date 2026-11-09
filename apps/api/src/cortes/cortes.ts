@@ -73,6 +73,7 @@ export class CorteService implements OnApplicationBootstrap {
 
     const vencen = await bd.listado_pago.findMany({
       where: { estado: 'EMITIDO', fecha_pago: { lte: aFechaBd(hoy) } },
+      orderBy: { id: 'asc' },
       select: { id: true, tienda_id: true, cliente_id: true, numero: true },
     });
     for (const l of vencen) {
@@ -100,6 +101,7 @@ export class CorteService implements OnApplicationBootstrap {
 
     const clientes = await bd.cliente.findMany({
       where: { dia_corte: Number(hoy.slice(8)), tienda: { estado: 'ACTIVO' } },
+      orderBy: { id: 'asc' },
       select: { id: true, tienda_id: true, tienda: { select: { nombre_comercial: true } } },
     });
     // Cada cliente en su transacción: un error no detiene a los demás.
@@ -127,9 +129,11 @@ export class CorteService implements OnApplicationBootstrap {
       const cliente = await t.bd.cliente.findFirstOrThrow({ where: { id: clienteId } });
       const compras = await t.bd.compra.findMany({
         where: { cliente_id: clienteId, modalidad: 'FIN_MES', estado: 'PENDIENTE', fecha_corte: corte, listado_item: { none: {} } },
+        orderBy: { id: 'asc' },
       });
       const enCuotas = await t.bd.compra.findMany({
         where: { cliente_id: clienteId, modalidad: 'CUOTAS', estado: 'PENDIENTE' },
+        orderBy: { id: 'asc' },
         include: { cuota: { where: { estado: 'PENDIENTE', listado_item: { none: {} } } } },
       });
       // Por las fechas guardadas (6.1.3): la cuota k se lista en el corte k meses después del de la compra.

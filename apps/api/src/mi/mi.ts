@@ -47,19 +47,20 @@ export class MiService {
     const limite = aDecBd(yo.limite_credito);
     const pendientes = await bd.listado_pago.findMany({
       where: { cliente_id: c.clienteId, estado: { not: 'PAGADO' } },
-      orderBy: { fecha_pago: 'asc' },
+      orderBy: [{ fecha_pago: 'asc' }, { id: 'asc' }],
     });
     const proximo = pendientes[0];
     const ultimaFechaCorte = await bd.listado_pago.findFirst({
       where: { cliente_id: c.clienteId },
-      orderBy: { fecha_corte: 'desc' },
+      orderBy: [{ fecha_corte: 'desc' }, { id: 'desc' }],
     });
     const compras = await bd.compra.findMany({
       where: { cliente_id: c.clienteId, estado: { not: 'ANULADA' } },
-      orderBy: { fecha_hora: 'asc' },
+      orderBy: [{ fecha_hora: 'asc' }, { id: 'asc' }],
     });
     const pendientesDeListar = await bd.compra.findMany({
       where: { cliente_id: c.clienteId, estado: 'PENDIENTE' },
+      orderBy: { id: 'asc' },
       include: { cuota: { include: { listado_item: true } }, listado_item: true },
     });
     const semanas = new Map<string, Dec>();
@@ -144,7 +145,7 @@ export class MiService {
     const hoy = this.hoy();
     const filas = await this.bd.enTienda(c.tiendaId).listado_pago.findMany({
       where: { cliente_id: c.clienteId },
-      orderBy: { fecha_corte: 'desc' },
+      orderBy: [{ fecha_corte: 'desc' }, { id: 'desc' }],
     });
     return { items: filas.map((l) => listadoResumenDto(l, hoy)), total: filas.length };
   }
@@ -157,7 +158,7 @@ export class MiService {
     const compras = await this.bd.enTienda(c.tiendaId).compra.findMany({
       where: { cliente_id: c.clienteId, modalidad: 'CUOTAS', estado: { not: 'ANULADA' } },
       include: { cuota: true },
-      orderBy: { fecha_hora: 'asc' },
+      orderBy: [{ fecha_hora: 'asc' }, { id: 'asc' }],
     });
     return {
       compras: compras.map((x) => {
@@ -196,7 +197,7 @@ export class MiService {
     const filas = await bd.pago.findMany({
       where: { listado_pago: { cliente_id: c.clienteId } },
       include: { listado_pago: true },
-      orderBy: { fecha: 'desc' },
+      orderBy: [{ fecha: 'desc' }, { id: 'desc' }],
     });
     const su = calcularSu(await comprasParaSu(bd, c.clienteId));
     return {
@@ -240,7 +241,7 @@ export class MiService {
     const yo = await bd.cliente.findFirstOrThrow({ where: { id: c.clienteId } });
     const x = await bd.compra.findFirst({
       where: { cliente_id: c.clienteId, estado: { not: 'ANULADA' } },
-      orderBy: { fecha_hora: 'asc' },
+      orderBy: [{ fecha_hora: 'asc' }, { id: 'asc' }],
     });
     if (!x) throw noExiste('La compra de ejemplo');
     const r = dePartesBd(x.fecha_hora);
