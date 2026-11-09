@@ -5,6 +5,7 @@ import { ReactNode } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import C01LoginCliente from '../pantallas/cliente/C01LoginCliente';
+import C03InicioCliente from '../pantallas/cliente/C03InicioCliente';
 import C05MiListado from '../pantallas/cliente/C05MiListado';
 import C06MisCuotas from '../pantallas/cliente/C06MisCuotas';
 import C08MiPerfil from '../pantallas/cliente/C08MiPerfil';
@@ -217,5 +218,34 @@ describe('C01 Login del cliente', () => {
     await userEvent.click(screen.getByRole('button', { name: /Ingresar/ }));
     expect(await screen.findByText('El DNI debe tener 8 dígitos numéricos.')).toBeInTheDocument();
     expect(espia.mock.calls.filter(([u]) => String(u).includes('auth/login'))).toHaveLength(0);
+  });
+});
+
+describe('C03 con tasa nominal (juego 2, María)', () => {
+  it('escribe la tasa como "TNA 42 %, capitalización mensual"', async () => {
+    apiFalsa({
+      '/mi/resumen': {
+        cliente: { nombre: 'María Huamán', numeroCuenta: '00000002' },
+        tienda: { nombreComercial: 'Minimarket Doña Rosa' },
+        moneda: 'PEN',
+        proximoPago: {
+          total: '93.25',
+          capital: '84.11',
+          interes: '9.14',
+          mora: '0.00',
+          totalALaFecha: '93.25',
+          fecha: '2026-10-26',
+          diasRestantes: 34,
+          proyectado: true,
+        },
+        credito: { limite: '600.00', usado: '257.80', disponible: '342.20', usoPorcentaje: '43.0' },
+        comprasPorSemana: [],
+        comprasDelCiclo: 0,
+        tasa: { tipo: 'NOMINAL', valor: '0.420000000', plazo: 360, capitalizacion: 30 },
+      },
+    });
+    montar(<C03InicioCliente />);
+    expect(await screen.findByText('TNA 42 %, capitalización mensual')).toBeInTheDocument();
+    expect(screen.getByText('S/ 342.20')).toBeInTheDocument();
   });
 });

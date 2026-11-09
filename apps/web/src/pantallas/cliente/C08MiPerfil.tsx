@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { api } from '../../api/api';
-import { etiquetaTasa, formatearMonto, formatearTasaResumida } from '../../lib/formato';
+import { formatearMonto, formatearTasaResumida, tasaConEtiqueta } from '../../lib/formato';
 import {
   Boton,
   Campo,
@@ -132,8 +132,12 @@ export default function C08MiPerfil() {
           <div className="flex justify-between py-1 border-b border-gray-50">
             <span className="text-gray-500">Tasa compensatoria:</span>
             <span className="font-medium text-gray-900">
-              {etiquetaTasa(perfil.tasa.tipo, perfil.tasa.plazo, perfil.tasa.capitalizacion)}{' '}
-              {formatearTasaResumida(perfil.tasa.valor)}
+              {tasaConEtiqueta(
+                perfil.tasa.tipo,
+                perfil.tasa.valor,
+                perfil.tasa.plazo,
+                perfil.tasa.capitalizacion,
+              )}
             </span>
           </div>
           <div className="flex justify-between py-1 border-b border-gray-50">

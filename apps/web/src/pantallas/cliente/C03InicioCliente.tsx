@@ -2,11 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api/api';
 import { esMayor } from '../../lib/entrada';
 import {
-  etiquetaTasa,
+  tasaConEtiqueta,
   formatearFecha,
   formatearMonto,
   formatearPorcentajeApi,
-  formatearTasaResumida,
 } from '../../lib/formato';
 import { aValorGrafico } from '../../lib/grafico';
 import { BarraUso, Cargando, Dato, Franja, PanelError, Tarjeta, Titulo } from '../../ui/base';
@@ -107,8 +106,12 @@ export default function C03InicioCliente() {
         <Tarjeta>
           <p className="text-xs text-gray-500">Tasa pactada</p>
           <p className="mt-1 text-base font-bold">
-            {etiquetaTasa(data.tasa.tipo, data.tasa.plazo, data.tasa.capitalizacion)}{' '}
-            {formatearTasaResumida(data.tasa.valor)}
+            {tasaConEtiqueta(
+              data.tasa.tipo,
+              data.tasa.valor,
+              data.tasa.plazo,
+              data.tasa.capitalizacion,
+            )}
           </p>
         </Tarjeta>
       </div>
