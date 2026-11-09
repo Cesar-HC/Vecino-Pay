@@ -35,7 +35,7 @@ const ordenes = {
       clave: process.env.PGPASSWORD,
       interactivo: !process.env.PGPASSWORD,
       archivo: join(RAIZ, 'db', 'roles.sql'),
-      vars: { owner_user: c.dueno, owner_pw: c.claveDueno, app_user: c.app, app_pw: c.claveApp },
+      vars: { owner_user: c.dueno, app_user: c.app },
     });
     console.log('Roles listos.');
   },

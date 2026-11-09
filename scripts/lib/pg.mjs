@@ -124,8 +124,14 @@ export function borrarBdDesechable(nombre) {
 
 /** Borra la base de desarrollo: solo desde `db:recrear -- --confirmar`. */
 export function borrarBdDesarrollo(nombre) {
-  if (PROHIBIDAS.has(nombre) || !/^[a-z0-9_]+$/.test(nombre))
-    throw new Error(`Nombre de base no permitido: ${nombre}`);
+  if (
+    PROHIBIDAS.has(nombre) ||
+    !/^vecinopay(_[a-z0-9]+)?$/.test(nombre) ||
+    NOMBRE_BD_DESECHABLE.test(nombre)
+  )
+    throw new Error(
+      `db:recrear solo borra la base de desarrollo (vecinopay...). Recibido: ${nombre}`,
+    );
   psql({ ...comoDueno(), sql: `DROP DATABASE IF EXISTS "${nombre}" WITH (FORCE)` });
 }
 

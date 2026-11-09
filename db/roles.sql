@@ -1,6 +1,9 @@
 -- VecinoPay: roles de PostgreSQL. Se ejecuta UNA vez como superusuario (postgres) con:
 --   npm run db:roles
--- Idempotente. Las contraseñas llegan por variables de psql (owner_pw, app_pw), nunca concatenadas a mano.
+-- Idempotente. Las contraseñas llegan por el entorno del proceso (DB_OWNER_PASSWORD y APP_DB_PASSWORD)
+-- y se leen con \getenv: nunca van en la línea de comandos.
+\getenv owner_pw DB_OWNER_PASSWORD
+\getenv app_pw APP_DB_PASSWORD
 SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'owner_user') AS dueno_existe \gset
 SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'app_user') AS app_existe \gset
 
@@ -20,6 +23,7 @@ SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'app_user') AS app_existe
 ALTER ROLE :"app_user" SET lock_timeout = '12s';
 ALTER ROLE :"app_user" SET search_path = public;
 
--- Permite al dueño cerrar las conexiones de la API al recrear una base (DROP DATABASE ... WITH (FORCE)).
--- pg_signal_backend no alcanza a los superusuarios.
-GRANT pg_signal_backend TO :"owner_user";
+-- Permite al dueño cerrar las conexiones de la API al recrear una base (DROP DATABASE ... WITH (FORCE)):
+-- basta con pertenecer al rol de la API, así que el alcance se limita a sus sesiones.
+REVOKE pg_signal_backend FROM :"owner_user";
+GRANT :"app_user" TO :"owner_user";

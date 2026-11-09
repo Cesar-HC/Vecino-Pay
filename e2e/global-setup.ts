@@ -42,9 +42,24 @@ export default async function globalSetup(): Promise<void> {
       if (r.status !== 0) throw new Error('Falló la compilación (npm run build).');
     }
 
-    bd('desechable');
-    lanzarApi(RELOJ_INICIAL);
-    lanzarWeb();
+    try {
+      bd('desechable');
+      lanzarApi(RELOJ_INICIAL);
+      lanzarWeb();
+      await esperarApi();
+      await esperarWeb();
+    } catch (e) {
+      // Playwright no ejecuta el teardown si el setup falla: se deja todo limpio antes de avisar.
+      detener('api');
+      detener('web');
+      try {
+        bd('borrar-desechable');
+      } catch {
+        // la base puede no haberse creado
+      }
+      throw e;
+    }
+    return;
   }
   await esperarApi();
   await esperarWeb();

@@ -14,12 +14,13 @@ import net from 'node:net';
 import path from 'node:path';
 
 export const RAIZ = path.resolve(__dirname, '..');
-export const ESTADO = path.join(RAIZ, 'e2e', '.estado');
 
 const valor = (nombre: string, defecto: number) => Number(process.env[nombre] ?? defecto);
 export const API_PORT = valor('E2E_API_PORT', 13000);
 export const WEB_PORT = valor('E2E_WEB_PORT', 18080);
 export const BD_E2E = process.env.E2E_DB_NAME ?? 'vecinopay_e2e';
+// Cada base tiene su carpeta de estado: dos corridas con bases distintas no se pisan.
+export const ESTADO = path.join(RAIZ, 'e2e', '.estado', BD_E2E);
 
 // La base y los puertos del desarrollo no se pueden usar aquí: la suite borra y recrea su base.
 for (const p of [API_PORT, WEB_PORT]) {
