@@ -5,14 +5,14 @@ Todas las cifras salen del informe v8 y las comprueba la suite de navegador (`np
 
 ## Antes de presentar
 
-Requisitos: Docker Desktop con WSL 2 y Node 22.
+Requisitos: PostgreSQL 17 activo, Node 22 o superior y el `.env` copiado de `.env.example` (con `npm run db:roles` ya ejecutado una vez).
 
-1. Deja la base en su estado inicial. **Borra todos los datos del proyecto `vecinopay`:**
+1. Deja la base en su estado inicial. **Borra todos los datos de la base `vecinopay`:**
    ```powershell
-   docker compose down -v
-   docker compose up -d --build
+   npm run db:recrear -- --confirmar
+   npm run demo
    ```
-2. Espera 1 minuto y abre http://localhost:8080. Arriba debe decir "reloj fijo en 22/09/2026 12:00:00".
+2. Espera unos segundos (la primera vez compila) y abre http://localhost:8080. Arriba debe decir "reloj fijo en 22/09/2026 12:00:00".
 3. Ensaya una vez con la guía. Pagar el listado y activar a María **se pueden hacer una sola vez**: después hay que repetir el paso 1.
 
 ## Usuarios
@@ -28,13 +28,13 @@ Requisitos: Docker Desktop con WSL 2 y Node 22.
 
 ## Cómo cambiar el reloj
 
-La demo usa un reloj fijo. Para cambiarlo, reinicia solo la API (tarda unos 20 segundos):
+La demo usa un reloj fijo. Para cambiarlo, detén la demo con Ctrl+C y levanta la API con otra fecha (la web puede quedar compilada):
 
 ```powershell
-$env:RELOJ_FIJO='2026-10-01T12:00:00-05:00'; docker compose up -d api
+$env:RELOJ_FIJO='2026-10-01T12:00:00-05:00'; npm run start:api   # y npm run start:web en otra terminal
 ```
 
-Para volver a 22/09/2026 12:00: `Remove-Item Env:RELOJ_FIJO; docker compose up -d api`.
+Para volver a 22/09/2026 12:00: `Remove-Item Env:RELOJ_FIJO; npm run demo` (con el `.env`, que ya trae esa fecha).
 
 ## Guion
 
@@ -56,8 +56,8 @@ Para volver a 22/09/2026 12:00: `Remove-Item Env:RELOJ_FIJO; docker compose up -
 
 ## Si algo falla (plan B)
 
-1. `docker compose down -v` y `docker compose up -d --build`. Si sigue, `docker compose logs db-init api`.
-2. Sin Docker, las cifras del informe se demuestran con las pruebas: `npm test -w packages/finance` (motor financiero, Tablas 16 a 20) y `npm test`.
+1. `npm run db:recrear -- --confirmar` y `npm run demo`. Si sigue, mira el registro de esa terminal y ejecuta `npm run db:estado`.
+2. Sin base de datos, las cifras del informe se demuestran con las pruebas: `npm test -w packages/finance` (motor financiero, Tablas 16 a 20) y `npm test`.
 3. Muestra el informe de la suite de navegador (`playwright-report/`, se abre con `npx playwright show-report`) o una corrida grabada con `$env:E2E_VIDEO='1'; npm run test:e2e`.
 4. Capturas de referencia en `docs/mockups/`.
 
@@ -65,7 +65,7 @@ Para volver a 22/09/2026 12:00: `Remove-Item Env:RELOJ_FIJO; docker compose up -
 
 ```powershell
 npm run test:e2e:instalar   # una sola vez: descarga Chromium
-npm run test:e2e            # 23 pruebas, unos 2 minutos
+npm run test:e2e            # 26 pruebas, unos 2 minutos
 ```
 
-Los specs van en orden y comparten estado (pagar y activar se consumen una vez): si uno falla a la mitad, los siguientes pueden fallar en cascada; se repite la corrida completa. Corre en un proyecto Docker aparte (`vecinopay-e2e`, puertos 18080, 13000 y 11433), con su propia base sembrada, y lo borra al terminar. **No toca los datos del proyecto `vecinopay`.** Para dejarlo arriba y depurar: `$env:E2E_MANTENER='1'`. Para reutilizar un entorno ya levantado: `$env:E2E_REUSAR='1'`.
+Los specs van en orden y comparten estado (pagar y activar se consumen una vez): si uno falla a la mitad, los siguientes pueden fallar en cascada; se repite la corrida completa. Corre con su propia base `vecinopay_e2e` (puertos 18080 y 13000), sembrada al inicio y borrada al terminar. **No toca los datos de la base `vecinopay`**, así que se puede correr con la demo levantada. Para dejarlo arriba y depurar: `$env:E2E_MANTENER='1'`. Para reutilizar un entorno ya levantado: `$env:E2E_REUSAR='1'`. Para omitir la compilación: `$env:E2E_SIN_BUILD='1'`.

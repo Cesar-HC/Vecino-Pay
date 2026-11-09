@@ -19,3 +19,7 @@ SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'app_user') AS app_existe
 -- 12 s es menor que el tiempo máximo de la transacción de Prisma: un bloqueo largo falla antes.
 ALTER ROLE :"app_user" SET lock_timeout = '12s';
 ALTER ROLE :"app_user" SET search_path = public;
+
+-- Permite al dueño cerrar las conexiones de la API al recrear una base (DROP DATABASE ... WITH (FORCE)).
+-- pg_signal_backend no alcanza a los superusuarios.
+GRANT pg_signal_backend TO :"owner_user";

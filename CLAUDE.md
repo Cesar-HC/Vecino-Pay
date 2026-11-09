@@ -4,10 +4,11 @@ Trabajo final de FIE 7651 (ciclo 2026-20). Toda la comunicación y la interfaz v
 Fuentes de verdad: `docs/informe_v8.txt` (texto del informe v8) y `docs/prompt_desarrollo.md`.
 
 ## Decisiones ya tomadas (no volver a preguntar)
-- Base de datos: **SQL Server 2022 con las 11 tablas del informe** (sección 8). Los scripts antiguos de PostgreSQL con 22 tablas no se usan.
+- Base de datos: **PostgreSQL 17 local, sin Docker, con las 11 tablas del informe** (sección 8). Decidido por el usuario el 09/11/2026 (docs/escalaciones.md): cambia el motor respecto del informe v8 (tipos DATETIME2 y NVARCHAR(MAX), Anexo 4 en T-SQL); el Word debe corregirse (pendiente del grupo). Los scripts antiguos de SQL Server y de PostgreSQL con 22 tablas no se usan.
+- Roles de la base: `vecinopay_owner` (dueño, crea y borra bases) y `vecinopay_app` (la API, sin DELETE ni DDL). La contraseña del superusuario `postgres` no se guarda en ningún archivo.
 - Todo el código lo genera Claude. La sección 9 del informe debe declararlo (pendiente del grupo).
 - Entrega en **una semana o menos** desde el 05/11/2026. Se prioriza tener el juego 1 y el juego 2 funcionando de punta a punta.
-- Node 22 (mínimo 20), Docker Desktop con WSL 2 en Windows.
+- Node 22 (mínimo 20; la PC usa Node 26). Sin Docker. `psql` en `C:\Program Files\PostgreSQL\17\bin` y pgAdmin como cliente.
 - Se trabaja por fases (README). Al final de cada fase, Adrián aprueba antes de seguir.
 
 ## Equipo de agentes y flujo obligatorio
@@ -47,8 +48,11 @@ Todo lo demás (nombres, estructura interna, librerías menores, refactors, esti
 - Toda consulta de operación filtra por el `tienda_id` del usuario autenticado.
 - Commits pequeños, en español, con prefijo de fase: `fase-1: ...`.
 - No borrar archivos de Adrián sin permiso.
+- Las pruebas usan bases desechables en el mismo servidor: `vecinopay_test` (integración) y `vecinopay_e2e` (Playwright). Nunca se corre nada destructivo contra `vecinopay`, salvo `npm run db:recrear -- --confirmar` pedido por Adrián.
+- Bloqueos de operación: `SELECT ... FOR NO KEY UPDATE`, en el orden tienda, cliente, listado.
 
 ## Comandos
-- `docker compose up -d --build`: levanta todo (web :8080, API :3000, SQL Server :1433).
-- `npm install` y luego `npm test`: pruebas del motor financiero.
-- `npm run dev:api` y `npm run dev:web`: desarrollo local.
+- `npm install`, `npm run db:roles` (una vez, pide la clave de postgres) y `npm run db:crear`: instalación y base de datos.
+- `npm run demo`: API en :3000 y web en :8080. `npm run dev:api` y `npm run dev:web`: desarrollo local.
+- `npm test`: unitarias. `npm run test:integracion`: API contra `vecinopay_test`. `npm run test:e2e`: navegador contra `vecinopay_e2e`.
+- `npm run db:verificar`: compara la base con el informe. `npm run db:recrear -- --confirmar`: borra y recarga `vecinopay`.

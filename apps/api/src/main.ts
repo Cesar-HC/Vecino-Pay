@@ -10,7 +10,7 @@ import { cargarEnv } from './config/cargar-env';
 import { cargarConfiguracion, ConfiguracionInvalida } from './config/configuracion';
 
 async function bootstrap() {
-  // En desarrollo local toma ../../.env; en Docker no existe y manda "environment".
+  // Toma ../../.env si existe; las variables ya definidas en el entorno mandan sobre el archivo.
   cargarEnv(resolve(__dirname, '../../../.env'));
 
   let config;

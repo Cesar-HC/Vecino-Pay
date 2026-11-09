@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 
 /**
- * Lee .env como lo hace docker compose: "#" solo inicia un comentario tras un espacio, porque las claves lo usan.
+ * Lee .env: "#" solo inicia un comentario tras un espacio, porque las claves lo usan.
  * process.loadEnvFile cortaría VecinoPay#2026 en VecinoPay. No pisa lo que ya esté en el entorno.
  */
 export function leerEnv(texto: string): Record<string, string> {
