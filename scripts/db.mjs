@@ -4,11 +4,13 @@ import { join } from 'node:path';
 import {
   RAIZ,
   borrarBdDesarrollo,
+  borrarBdDesechable,
   cfg,
   crearBd,
   existeBd,
   inicializar,
   psql,
+  urlApp,
   verificar,
 } from './lib/pg.mjs';
 
@@ -67,6 +69,27 @@ const ordenes = {
     crearBd(c.bd);
     inicializar(c.bd);
     console.log(`Base ${c.bd} recreada con las semillas.`);
+  },
+
+  /** Pruebas: recrea una base desechable (vecinopay_test o vecinopay_e2e) con las semillas. */
+  desechable() {
+    exigirClaves();
+    borrarBdDesechable(resto[0]);
+    crearBd(resto[0]);
+    inicializar(resto[0]);
+    console.log(`Base desechable ${resto[0]} lista.`);
+  },
+
+  'borrar-desechable'() {
+    exigirClaves();
+    borrarBdDesechable(resto[0]);
+    console.log(`Base desechable ${resto[0]} borrada.`);
+  },
+
+  /** Imprime la URL de la API (rol de pocos privilegios) para una base; la usan las pruebas de navegador. */
+  'url-app'() {
+    exigirClaves();
+    console.log(urlApp(resto[0] ?? c.bd));
   },
 
   verificar() {

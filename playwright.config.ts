@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 const WEB_PORT = Number(process.env.E2E_WEB_PORT ?? 18080);
 
-// Pruebas de navegador del recorrido de 6.4. Requieren Docker: no forman parte de `npm test`.
+// Pruebas de navegador del recorrido de 6.4. Requieren PostgreSQL local: no forman parte de `npm test`.
 // Los specs comparten estado (pagar y activar se consumen una vez): van en orden y con un solo worker.
 export default defineConfig({
   testDir: 'e2e/specs',
@@ -15,7 +15,7 @@ export default defineConfig({
   globalTeardown: './e2e/global-teardown.ts',
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
-    baseURL: `http://localhost:${WEB_PORT}`,
+    baseURL: `http://127.0.0.1:${WEB_PORT}`,
     locale: 'es-PE',
     timezoneId: 'America/Lima',
     trace: 'retain-on-failure',
