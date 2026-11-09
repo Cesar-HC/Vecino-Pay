@@ -43,7 +43,7 @@ export class CrearClienteDto {
   @Matches(/^\d{8}$/, { message: 'El DNI debe tener 8 dígitos.' }) dni: string;
   @IsString() @Length(1, 80) nombres: string;
   @IsString() @Length(1, 80) apellidos: string;
-  @Opcional() @IsString() @MaxLength(15) celular?: string;
+  @Opcional() @IsString() @Matches(/^(\d{9,15})?$/, { message: 'El celular debe tener entre 9 y 15 dígitos.' }) celular?: string;
   @Opcional() @IsString() @MaxLength(200) direccion?: string;
   @Equals(true, { message: 'Debe constar que el cliente aceptó el tratamiento de sus datos personales.' }) aceptaDatos: boolean;
   @IsIn(['PEN', 'USD']) moneda: 'PEN' | 'USD';
@@ -58,7 +58,7 @@ export class CrearClienteDto {
 export class EditarClienteDto {
   @Opcional() @IsString() @Length(1, 80) nombres?: string;
   @Opcional() @IsString() @Length(1, 80) apellidos?: string;
-  @Opcional() @IsString() @MaxLength(15) celular?: string;
+  @Opcional() @IsString() @Matches(/^(\d{9,15})?$/, { message: 'El celular debe tener entre 9 y 15 dígitos.' }) celular?: string;
   @Opcional() @IsString() @MaxLength(200) direccion?: string;
   @Opcional() @IsIn(['PEN', 'USD']) moneda?: 'PEN' | 'USD';
   @Opcional() @IsMonto() limiteCredito?: string;
@@ -229,7 +229,7 @@ export class ClientesService {
               dni: d.dni,
               nombres: d.nombres,
               apellidos: d.apellidos,
-              celular: d.celular ?? null,
+              celular: vacioANull(d.celular) ?? null,
               direccion: d.direccion ?? null,
               moneda: d.moneda,
               limite_credito: aDecimalBd(d.limiteCredito, 2),

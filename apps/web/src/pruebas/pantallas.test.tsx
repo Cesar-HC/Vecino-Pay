@@ -167,8 +167,21 @@ describe('A02', () => {
         ruta: /cortes/,
         cuerpo: {
           fecha: '2026-10-20',
-          listadosEmitidos: [{ numero: 'EC-202610-00001', clienteId: '1', total: '93.25' }],
-          omitidos: 0,
+          listadosEmitidos: [
+            {
+              numero: 'EC-202610-00001',
+              clienteId: '1',
+              total: '93.25',
+              tienda: 'Minimarket Doña Rosa',
+            },
+            {
+              numero: 'EC-202610-00001',
+              clienteId: '9',
+              total: '56.96',
+              tienda: 'Ferretería Prueba',
+            },
+          ],
+          omitidos: 3,
           vencidos: 1,
           errores: [],
         },
@@ -179,6 +192,15 @@ describe('A02', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Ejecutar' }));
     const r = await screen.findByText(/EC-202610-00001/);
     expect(r.textContent).not.toContain('93.25');
+    expect(r.textContent).not.toContain('56.96');
+    // Dos tiendas pueden tener el mismo número: cada listado dice de cuál es.
+    expect(r.textContent).toContain('2 listados emitidos');
+    expect(r.textContent).toContain('EC-202610-00001 de Minimarket Doña Rosa');
+    expect(r.textContent).toContain('EC-202610-00001 de Ferretería Prueba');
+    // Quien ya tenía su listado no está "sin listado": no tiene nada nuevo por listar.
+    expect(r.textContent).toContain('3 clientes sin nada nuevo por listar');
+    expect(r.textContent).toContain('1 listado vencido');
+    expect(r.textContent).toContain('0 errores');
   });
 });
 

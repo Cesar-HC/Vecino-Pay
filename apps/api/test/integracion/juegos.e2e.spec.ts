@@ -98,7 +98,13 @@ describe('Juego 1 (T16, T17)', () => {
     const no = await p.post('/cortes/ejecutar', admin).expect(409);
     expect(no.body.codigo).toBe('CORTE_NO_DISPONIBLE');
 
-    await cortar('2026-09-20T17:00:01');
+    const corte = await cortar('2026-09-20T17:00:01');
+    // Cada listado emitido dice de qué tienda es: dos tiendas pueden tener el mismo número.
+    expect(corte.listadosEmitidos.find((x: { clienteId: string }) => x.clienteId === luis)).toMatchObject({
+      tienda: 'Tienda Juego',
+    });
+    // El corte lo ejecuta el administrador: la respuesta no lleva importes.
+    expect(JSON.stringify(corte)).not.toMatch(/"total"|228.42/);
     const [l] = await listadoDe(luis);
     listado = l.id;
     const d = (await p.get(`/listados/${l.id}`, dueno).expect(200)).body;

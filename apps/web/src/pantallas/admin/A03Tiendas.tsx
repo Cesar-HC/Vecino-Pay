@@ -44,6 +44,15 @@ const esquema = z.object({
 });
 type Datos = z.infer<typeof esquema>;
 
+/** En el alta, el dueño y su clave se exigen junto con los demás campos: así todos los errores salen a la vez. */
+const esquemaAlta = esquema.extend({
+  usuarioDueno: z.string().trim().min(1, 'Escribe el usuario del dueño.').max(120),
+  claveTemporal: z
+    .string()
+    .optional()
+    .refine((c) => !c || c.length >= 8, 'La clave temporal debe tener 8 caracteres o más.'),
+});
+
 const VACIO: Datos = {
   ruc: '',
   razonSocial: '',
@@ -71,7 +80,10 @@ function Formulario({ tienda, alTerminar }: { tienda: Tienda | null; alTerminar:
     reset,
     setError,
     formState: { errors, isSubmitting, dirtyFields },
-  } = useForm<Datos>({ resolver: zodResolver(esquema), defaultValues: VACIO });
+  } = useForm<Datos>({
+    resolver: zodResolver(tienda ? esquema : esquemaAlta),
+    defaultValues: VACIO,
+  });
   const [bajar, setBajar] = useState(false);
 
   useEffect(() => {
@@ -122,16 +134,6 @@ function Formulario({ tienda, alTerminar }: { tienda: Tienda | null; alTerminar:
         }
         await api.editarTienda(tienda.id, cambios);
       } else {
-        if (!d.usuarioDueno) {
-          setError('usuarioDueno', { message: 'Escribe el usuario del dueño.' });
-          return;
-        }
-        if (d.claveTemporal && d.claveTemporal.length < 8) {
-          setError('claveTemporal', {
-            message: 'La clave temporal debe tener 8 caracteres o más.',
-          });
-          return;
-        }
         await api.crearTienda({
           ruc: d.ruc,
           razonSocial: d.razonSocial,

@@ -185,6 +185,22 @@ describe('estado sembrado', () => {
     expect(leido.codigoActivacion).toBe(c.codigoActivacion);
   });
 
+  it('D03: el celular, si se envía, tiene de 9 a 15 dígitos; vacío se admite', async () => {
+    const admin = await p.admin();
+    const t = await p.crearTienda('Tienda celular', admin, await p.rosa());
+    for (const celular of ['12', '951 284 736', '+51951284736', '12345678']) {
+      const r = await p.post('/clientes', t.token, { ...LUIS(dniUnico()), celular }).expect(400);
+      expect(JSON.stringify(r.body)).toContain('El celular debe tener entre 9 y 15 dígitos.');
+    }
+    await p.post('/clientes', t.token, { ...LUIS(dniUnico()), celular: '951284736' }).expect(201);
+    await p.post('/clientes', t.token, { ...LUIS(dniUnico()) }).expect(201);
+    const c = (await p.post('/clientes', t.token, LUIS(dniUnico())).expect(201)).body;
+    await p.patch(`/clientes/${c.id}`, t.token, { celular: '12' }).expect(400);
+    await p.patch(`/clientes/${c.id}`, t.token, { celular: '987654321' }).expect(200);
+    // Vaciar el celular también se admite.
+    await p.patch(`/clientes/${c.id}`, t.token, { celular: '' }).expect(200);
+  });
+
   it('no se cambian condiciones con deuda; sí el límite', async () => {
     const rosa = await p.rosa();
     const luis = (await p.get('/clientes?texto=45872316', rosa)).body.items[0];

@@ -50,7 +50,7 @@ export interface ResumenPlataforma {
 
 export interface ResultadoCorte {
   fecha: string;
-  listadosEmitidos: { numero: string; clienteId: string }[];
+  listadosEmitidos: { numero: string; clienteId: string; tienda: string }[];
   omitidos: number;
   vencidos: number;
   errores: { clienteId: string; mensaje: string }[];

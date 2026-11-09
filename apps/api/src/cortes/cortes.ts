@@ -13,12 +13,13 @@ import {
 import { BdService } from '../bd/bd.service';
 import { aDecBd, aFechaBd, deFechaBd, dePartesBd } from '../bd/conversiones';
 import { ErrorNegocio } from '../comun/error-negocio';
-import { aId, aSoles, Roles } from '../comun/utilidades';
+import { aId, Roles } from '../comun/utilidades';
 import { RELOJ, Reloj } from '../reloj/reloj';
 
 export interface ResultadoCorte {
   fecha: string;
-  listadosEmitidos: { numero: string; clienteId: string; total: string }[];
+  /** Sin importes: el corte lo ejecuta el administrador, que no ve montos de deuda (6.2.1). */
+  listadosEmitidos: { numero: string; clienteId: string; tienda: string }[];
   omitidos: number;
   vencidos: number;
   errores: { clienteId: string; mensaje: string }[];
@@ -99,13 +100,13 @@ export class CorteService implements OnApplicationBootstrap {
 
     const clientes = await bd.cliente.findMany({
       where: { dia_corte: Number(hoy.slice(8)), tienda: { estado: 'ACTIVO' } },
-      select: { id: true, tienda_id: true },
+      select: { id: true, tienda_id: true, tienda: { select: { nombre_comercial: true } } },
     });
     // Cada cliente en su transacción: un error no detiene a los demás.
     for (const c of clientes) {
       try {
         const emitido = await this.cortarCliente(c.tienda_id, c.id, hoy);
-        if (emitido) resultado.listadosEmitidos.push(emitido);
+        if (emitido) resultado.listadosEmitidos.push({ ...emitido, tienda: c.tienda.nombre_comercial });
         else resultado.omitidos++;
       } catch (e) {
         this.log.error(e);
@@ -213,7 +214,7 @@ export class CorteService implements OnApplicationBootstrap {
         registroId: creado.id,
         detalle: `Corte automático: listado ${numero}`,
       });
-      return { numero, clienteId: aId(clienteId) as string, total: aSoles(listado.total) };
+      return { numero, clienteId: aId(clienteId) as string };
     });
   }
 }

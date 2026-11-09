@@ -42,9 +42,13 @@ const esquema = z
       .optional(),
     precioContado: z
       .string()
-      .regex(PRECIO, 'El precio admite hasta 2 decimales.')
+      .min(1, 'Escribe el precio contado.')
+      .regex(PRECIO, 'Escribe el precio solo con números y hasta 2 decimales. Ejemplo: 25.50.')
       .refine(mayorQueCero, 'El precio contado debe ser mayor que cero.'),
-    precioLista: z.string().regex(PRECIO, 'El precio admite hasta 2 decimales.'),
+    precioLista: z
+      .string()
+      .min(1, 'Escribe el precio de lista.')
+      .regex(PRECIO, 'Escribe el precio solo con números y hasta 2 decimales. Ejemplo: 27.50.'),
     permiteFinMes: z.boolean(),
     permiteCuotas: z.boolean(),
   })

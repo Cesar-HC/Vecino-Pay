@@ -10,7 +10,7 @@ import A03Tiendas from '../pantallas/admin/A03Tiendas';
 import A04Usuarios from '../pantallas/admin/A04Usuarios';
 import A05Auditoria from '../pantallas/admin/A05Auditoria';
 import D02Productos from '../pantallas/dueno/D02Productos';
-import { D03Ficha } from '../pantallas/dueno/D03Clientes';
+import { D03Ficha, D03Lista } from '../pantallas/dueno/D03Clientes';
 import D04NuevaCompra from '../pantallas/dueno/D04NuevaCompra';
 import { Plantilla } from '../plantillas/Plantilla';
 import { ProveedorSesion } from '../sesion/Sesion';
@@ -247,6 +247,30 @@ describe('A03', () => {
     expect(screen.queryByText('INACTIVO')).not.toBeInTheDocument();
   });
 
+  it('el alta vacía muestra todos los errores a la vez, también el del dueño', async () => {
+    const llamadas = apiFalsa([{ ruta: /tiendas/, cuerpo: { items: [], total: 0 } }]);
+    montar(<A03Tiendas />);
+    await screen.findByLabelText('COK de la tienda (TEA, %)');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    expect(await screen.findByText('El RUC debe tener 11 dígitos.')).toBeInTheDocument();
+    expect(screen.getByText('Escribe la razón social.')).toBeInTheDocument();
+    expect(screen.getByText('Escribe el nombre comercial.')).toBeInTheDocument();
+    expect(screen.getByText('Escribe el giro.')).toBeInTheDocument();
+    expect(screen.getByText('Escribe el usuario del dueño.')).toBeInTheDocument();
+    expect(envios(llamadas)).toHaveLength(0);
+  });
+
+  it('una clave temporal corta se avisa junto con los demás errores', async () => {
+    apiFalsa([{ ruta: /tiendas/, cuerpo: { items: [], total: 0 } }]);
+    montar(<A03Tiendas />);
+    await userEvent.type(await screen.findByLabelText('Clave temporal'), '123');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    expect(
+      await screen.findByText('La clave temporal debe tener 8 caracteres o más.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Escribe el usuario del dueño.')).toBeInTheDocument();
+  });
+
   it('el RUC repetido sale debajo de su campo; el COK vacío da mensaje y no falla en silencio', async () => {
     const llamadas = apiFalsa([
       { ruta: /tiendas/, cuerpo: { items: [], total: 0 } },
@@ -398,8 +422,24 @@ describe('D02', () => {
     await userEvent.type(screen.getByLabelText('Precio contado (S/)'), 'abc');
     await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
     expect(
-      (await screen.findAllByText('El precio admite hasta 2 decimales.')).length,
+      (
+        await screen.findAllByText(
+          'Escribe el precio solo con números y hasta 2 decimales. Ejemplo: 25.50.',
+        )
+      ).length,
     ).toBeGreaterThan(0);
+    expect(envios(llamadas)).toHaveLength(0);
+  });
+
+  it('precio vacío dice "Escribe el precio", no una regla de decimales', async () => {
+    const llamadas = apiFalsa(rutas());
+    montar(<D02Productos />);
+    await screen.findByRole('button', { name: 'Pollo' });
+    await userEvent.type(screen.getByLabelText('Código'), 'X1');
+    await userEvent.type(screen.getByLabelText('Nombre'), 'X');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    expect(await screen.findByText('Escribe el precio contado.')).toBeInTheDocument();
+    expect(screen.getByText('Escribe el precio de lista.')).toBeInTheDocument();
     expect(envios(llamadas)).toHaveLength(0);
   });
 
@@ -509,12 +549,64 @@ describe('D03', () => {
     const limite = await screen.findByLabelText('Límite de crédito');
     await userEvent.clear(limite);
     await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
-    expect(await screen.findByText('El límite admite hasta 2 decimales.')).toBeInTheDocument();
+    expect(await screen.findByText('Escribe el límite de crédito.')).toBeInTheDocument();
     expect(llamadas.filter((l) => l.metodo === 'PATCH')).toHaveLength(0);
+    // Un límite negativo se explica con la regla que no cumple, no con "decimales".
+    await userEvent.type(limite, '-100');
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    expect(
+      await screen.findByText(
+        'Escribe el límite solo con números y hasta 2 decimales, sin signo. Ejemplo: 500.00.',
+      ),
+    ).toBeInTheDocument();
+    await userEvent.clear(limite);
     await userEvent.type(limite, '700.00');
     await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
     await waitFor(() => expect(llamadas.filter((l) => l.metodo === 'PATCH')).toHaveLength(1));
     expect(llamadas.find((l) => l.metodo === 'PATCH')?.cuerpo).toEqual({ limiteCredito: '700.00' });
+  });
+});
+
+describe('D03 alta de cliente', () => {
+  // calcular-tasas es la vista previa de las tasas, no un guardado.
+  const guardados = (l: { metodo: string; ruta: string }[]) =>
+    envios(l).filter((x) => !x.ruta.includes('calcular-tasas'));
+
+  async function abrirAlta() {
+    const llamadas = apiFalsa([{ ruta: /clientes/, cuerpo: { items: [], total: 0 } }]);
+    montar(<D03Lista />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Nuevo cliente' }));
+    await screen.findByLabelText('DNI');
+    return llamadas;
+  }
+
+  it('el consentimiento se exige junto con los demás campos, no después', async () => {
+    const llamadas = await abrirAlta();
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    expect(await screen.findByText('El DNI debe tener 8 dígitos.')).toBeInTheDocument();
+    expect(screen.getByText('Escribe los nombres.')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Debe constar que el cliente aceptó el tratamiento de sus datos personales.',
+      ),
+    ).toBeInTheDocument();
+    expect(guardados(llamadas)).toHaveLength(0);
+  });
+
+  it('un celular de 2 dígitos se rechaza con la regla; vacío sí se admite', async () => {
+    const llamadas = await abrirAlta();
+    await userEvent.type(screen.getByLabelText('DNI'), '70123456');
+    await userEvent.type(screen.getByLabelText('Nombres'), 'Pedro');
+    await userEvent.type(screen.getByLabelText('Apellidos'), 'Ruiz');
+    await userEvent.type(screen.getByLabelText('Celular'), '12');
+    await userEvent.click(screen.getByRole('checkbox'));
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    expect(
+      await screen.findByText(
+        'El celular debe tener entre 9 y 15 dígitos, sin espacios ni signos.',
+      ),
+    ).toBeInTheDocument();
+    expect(guardados(llamadas)).toHaveLength(0);
   });
 });
 

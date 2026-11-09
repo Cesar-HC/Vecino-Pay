@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../../api/api';
+import type { ResultadoCorte } from '../../api/tipos';
 import { aEntero } from '../../lib/entrada';
 import { formatearFecha, formatearFechaHora } from '../../lib/formato';
 import {
@@ -20,6 +21,26 @@ import { GraficoBarras, GraficoCirculo } from '../../ui/Graficos';
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const nombreMes = (mes: string) => `${MESES[aEntero(mes.slice(5)) - 1]} ${mes.slice(2, 4)}`;
+
+const cantidad = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
+
+/**
+ * Texto del resultado del corte. Cada listado lleva su tienda: la numeración es por tienda y dos
+ * tiendas pueden tener el mismo número. "Sin nada nuevo" incluye a quien ya tenía su listado
+ * de este corte (repetir el corte no duplica nada). Nunca muestra importes (6.2.1).
+ */
+export function resumenCorte(r: ResultadoCorte): string {
+  const emitidos = r.listadosEmitidos.length;
+  const detalle = emitidos
+    ? ` (${r.listadosEmitidos.map((l) => `${l.numero} de ${l.tienda}`).join(', ')})`
+    : '';
+  return (
+    `Corte del ${formatearFecha(r.fecha)}: ${cantidad(emitidos, 'listado emitido', 'listados emitidos')}${detalle}, ` +
+    `${cantidad(r.omitidos, 'cliente sin nada nuevo por listar', 'clientes sin nada nuevo por listar')}, ` +
+    `${cantidad(r.vencidos, 'listado vencido', 'listados vencidos')} y ` +
+    `${cantidad(r.errores.length, 'error', 'errores')}.`
+  );
+}
 
 /** Solo con reloj fijo: sin cron no hay listados en la demo. Nunca muestra importes (6.2.1). */
 function CorteDemo() {
@@ -48,14 +69,7 @@ function CorteDemo() {
       )}
       {corte.data && (
         <div className="mt-2">
-          <Franja tipo="exito">
-            Corte del {formatearFecha(corte.data.fecha)}: {corte.data.listadosEmitidos.length}{' '}
-            listados emitidos
-            {corte.data.listadosEmitidos.length > 0 &&
-              ` (${corte.data.listadosEmitidos.map((l) => l.numero).join(', ')})`}
-            , {corte.data.omitidos} clientes sin listado, {corte.data.vencidos} vencidos y{' '}
-            {corte.data.errores.length} errores.
-          </Franja>
+          <Franja tipo="exito">{resumenCorte(corte.data)}</Franja>
         </div>
       )}
       {confirmar && (

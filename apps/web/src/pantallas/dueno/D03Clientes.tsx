@@ -62,9 +62,18 @@ const esquema = z
     dni: z.string().regex(/^\d{8}$/, 'El DNI debe tener 8 dígitos.'),
     nombres: z.string().trim().min(1, 'Escribe los nombres.').max(80),
     apellidos: z.string().trim().min(1, 'Escribe los apellidos.').max(80),
-    celular: z.string().trim().max(15).optional(),
+    celular: z
+      .string()
+      .trim()
+      .regex(/^(\d{9,15})?$/, 'El celular debe tener entre 9 y 15 dígitos, sin espacios ni signos.')
+      .optional(),
     direccion: z.string().trim().max(200).optional(),
-    aceptaDatos: z.boolean(),
+    aceptaDatos: z
+      .boolean()
+      .refine(
+        (v) => v,
+        'Debe constar que el cliente aceptó el tratamiento de sus datos personales.',
+      ),
     tipoTasa: z.enum(['EFECTIVA', 'NOMINAL']),
     valorTasa: porcentaje,
     plazoTasa: z.coerce.number(),
@@ -72,7 +81,11 @@ const esquema = z
     moneda: z.enum(['PEN', 'USD']),
     limiteCredito: z
       .string()
-      .regex(MONTO_DIGITADO, 'El límite admite hasta 2 decimales.')
+      .min(1, 'Escribe el límite de crédito.')
+      .regex(
+        MONTO_DIGITADO,
+        'Escribe el límite solo con números y hasta 2 decimales, sin signo. Ejemplo: 500.00.',
+      )
       .refine(mayorQueCero, 'El límite de crédito debe ser mayor que cero.'),
     tipoMora: z.enum(['EFECTIVA', 'NOMINAL']),
     valorMora: porcentaje,
@@ -318,12 +331,6 @@ function Formulario({
         }
         guardado = await api.editarCliente(cliente.id, cambios);
       } else {
-        if (!d.aceptaDatos) {
-          setError('aceptaDatos', {
-            message: 'Debe constar que el cliente aceptó el tratamiento de sus datos personales.',
-          });
-          return;
-        }
         guardado = await api.crearCliente({
           dni: d.dni,
           nombres: d.nombres,
