@@ -3,7 +3,7 @@
 Aplicación web multitienda que reemplaza el "cuaderno del fiado" de las tiendas de barrio.
 Trabajo final del curso Finanzas e Ingeniería Económica (FIE 7651, ciclo 2026-20).
 
-La fuente de verdad es el informe **Trabajo_Parcial_FIE_7651_VecinoPay_v8.docx**: la app
+La fuente de verdad es el informe **Trabajo_Final_FIE_7651_VecinoPay_v8.docx**: la app
 reproduce sus reglas, fórmulas (sección 6.3), juegos de prueba (6.4) y modelo de datos (sección 8).
 
 ## Estructura

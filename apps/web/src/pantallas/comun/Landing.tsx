@@ -66,7 +66,7 @@ export function Landing() {
       </main>
 
       <footer className="border-t border-gray-100 p-4 text-center text-xs text-gray-500">
-        VecinoPay · Trabajo parcial FIE 7651
+        VecinoPay
       </footer>
     </div>
   );

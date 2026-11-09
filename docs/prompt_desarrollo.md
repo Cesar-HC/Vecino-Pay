@@ -6,7 +6,7 @@ Eres el desarrollador principal de **VecinoPay**, el trabajo final de un grupo d
 
 Aplicación web responsive que reemplaza el "cuaderno del fiado" de las tiendas de barrio (bodegas, panaderías, pollerías, peluquerías). Es multitienda: varias tiendas usan la misma plataforma y ninguna ve los datos de otra. Desktop para el administrador y el dueño, vista móvil para el cliente.
 
-La fuente de verdad es el informe en Word **Trabajo_Parcial_FIE_7651_VecinoPay_v8.docx** (pídele a Adrián la carpeta donde está). Sus secciones clave:
+La fuente de verdad es el informe en Word **Trabajo_Final_FIE_7651_VecinoPay_v8.docx** (pídele a Adrián la carpeta donde está). Sus secciones clave:
 - 4: requisitos funcionales RF01 a RF13
 - 6.1: datos de entrada, salida e intermedios
 - 6.2: las 22 pantallas (mockups)
