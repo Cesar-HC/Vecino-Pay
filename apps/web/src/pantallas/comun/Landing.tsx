@@ -24,7 +24,7 @@ export function Landing() {
           to="/ingresar"
           className="inline-flex min-h-11 items-center rounded-lg bg-vecino-primario px-5 text-sm font-semibold text-white hover:bg-vecino-oscuro"
         >
-          Ingresar
+          Iniciar sesión
         </Link>
       </header>
 
@@ -38,7 +38,13 @@ export function Landing() {
               VecinoPay ayuda a las tiendas de barrio a llevar las compras al crédito de sus
               vecinos, con cuotas claras, cronograma y registro de pagos.
             </p>
-            <p className="mt-6 text-sm">
+            <Link
+              to="/ingresar"
+              className="mt-6 inline-flex min-h-12 items-center rounded-lg bg-vecino-primario px-8 text-base font-semibold text-white hover:bg-vecino-oscuro"
+            >
+              Ingresar
+            </Link>
+            <p className="mt-4 text-sm">
               ¿Primera vez?{' '}
               <Link to="/m/activar" className="font-semibold text-vecino-primario underline">
                 Activa tu cuenta

@@ -16,7 +16,7 @@ test('la landing lleva a ingresar y a activar la cuenta, sin registro', async ({
   await expect(page).toHaveURL(/\/ingresar$/);
 });
 
-test('un cliente entra desde la landing y un dueño desde la pestaña Soy comercio', async ({
+test('un cliente entra desde la landing y un dueño desde la pestaña Soy dueño', async ({
   page,
 }) => {
   await page.goto('/ingresar');
@@ -27,7 +27,7 @@ test('un cliente entra desde la landing y un dueño desde la pestaña Soy comerc
 
   await cerrarSesion(page);
   await page.goto('/ingresar');
-  await page.getByRole('tab', { name: 'Soy comercio' }).click();
+  await page.getByRole('tab', { name: 'Soy dueño' }).click();
   await page.getByLabel(/^Usuario/).fill('rosa@vecinopay.test');
   await page.getByLabel(/^Contraseña/).fill('Tienda#2026');
   await page.getByRole('button', { name: 'Ingresar' }).click();

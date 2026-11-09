@@ -10,7 +10,7 @@ type Modo = 'cliente' | 'comercio';
 
 const MODOS: { id: Modo; texto: string }[] = [
   { id: 'cliente', texto: 'Soy cliente' },
-  { id: 'comercio', texto: 'Soy comercio' },
+  { id: 'comercio', texto: 'Soy dueño' },
 ];
 
 /** Ingreso único (A01 + C01): una sola pantalla para los tres perfiles. No hay registro abierto. */

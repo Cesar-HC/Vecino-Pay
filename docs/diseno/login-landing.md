@@ -5,7 +5,7 @@ Fuentes: informe v8 sección 4 (RF de acceso y perfiles), 6.2 (A01 y C01, C02), 
 
 ## 1. Resumen
 - "/" deja de ser solo una redirección: sin sesión muestra una landing; con sesión redirige a `inicioDe(perfil)` igual que hoy.
-- Un único componente de ingreso (`Ingreso`) con selector "Soy cliente / Soy comercio". Cliente: DNI + contraseña, `perfil: 'CLIENTE'`. Comercio: usuario + contraseña + select "Perfil" (Administrador del negocio = DUENO, Administrador del sistema = ADMIN_SISTEMA).
+- Un único componente de ingreso (`Ingreso`) con selector "Soy cliente / Soy dueño". Cliente: DNI + contraseña, `perfil: 'CLIENTE'`. Comercio: usuario + contraseña + select "Perfil" (Administrador del negocio = DUENO, Administrador del sistema = ADMIN_SISTEMA).
 - `/login`, `/m/login` e `/ingresar` (nueva) montan el mismo componente; solo cambia el modo inicial.
 - No hay registro abierto: el cliente solo activa su cuenta en `/m/activar` (C02) con DNI + código del dueño.
 - Pantalla extra fuera de las 22 del informe: anotar en `docs/decisiones.md` ("L01 Landing" e "ingreso único que unifica A01 y C01, sin cambio de RF"). Las pantallas A01 y C01 siguen existiendo como los dos formularios del ingreso.
@@ -21,7 +21,7 @@ Justificación:
 Crear:
 - `apps/web/src/pantallas/comun/Landing.tsx`: página pública. Cabecera con marca "VecinoPay" y botón "Ingresar"; héroe (qué es); 3 beneficios; enlace a activar; pie. Sin formularios.
 - `apps/web/src/pantallas/comun/Ingreso.tsx`: carcasa del ingreso. Props `{ modoInicial: 'cliente' | 'comercio' }`. Contiene: `FranjaReloj`, redirección si hay sesión (`Navigate` a `inicioDe`), panel de marca, selector de modo, aviso de sesión (`aviso`), franja "Cuenta creada..." (`location.state.activada`), y el formulario según el modo. Enlaces: "¿Primera vez? Activa tu cuenta" (/m/activar) y "Volver al inicio" (/).
-- `apps/web/src/pantallas/comun/SelectorModo.tsx` (puede vivir dentro de Ingreso.tsx): dos botones tipo pestaña, `role="tablist"`/`role="tab"` con `aria-selected`, texto "Soy cliente" y "Soy comercio".
+- `apps/web/src/pantallas/comun/SelectorModo.tsx` (puede vivir dentro de Ingreso.tsx): dos botones tipo pestaña, `role="tablist"`/`role="tab"` con `aria-selected`, texto "Soy cliente" y "Soy dueño".
 
 Modificar:
 - `apps/web/src/pantallas/admin/A01Login.tsx`: pasa a exportar `FormularioComercio` (mismo esquema zod, campos Usuario, Contraseña, Perfil, botón "Ingresar", texto "Cada inicio de sesión queda registrado"). Se quitan la cabecera, el panel oscuro y el enlace "portal móvil" (ahora lo cubre el selector). Se mantiene el default export `A01Login = () => <Ingreso modoInicial="comercio" />` solo si se prefiere conservar imports; recomendado: borrar el default y que App importe `Ingreso`.
@@ -49,7 +49,7 @@ Landing:
 - Botón principal: "Ingresar" (a `/ingresar`). Enlace: "¿Primera vez? Activa tu cuenta" (a `/m/activar`).
 - Nota bajo el enlace: "Tu tienda te entrega un código para activar tu cuenta." No hay botón "Registrarse" ni "Crear tienda".
 Ingreso:
-- Título "Inicia sesión". Pestañas "Soy cliente" / "Soy comercio".
+- Título "Inicia sesión". Pestañas "Soy cliente" / "Soy dueño".
 - Cliente: etiquetas "DNI" y "Contraseña" (se conservan los textos de ayuda actuales). Comercio: "Usuario", "Contraseña", "Perfil" con opciones "Administrador del negocio" y "Administrador del sistema".
 - Pie: "¿Primera vez? Activa tu cuenta" y "Volver al inicio".
 - Se conservan las etiquetas actuales porque el e2e las usa por `getByLabel(/^(Usuario|DNI)/)` y `/^Contraseña/`, `/^Perfil/`.
@@ -66,7 +66,7 @@ Unitarias (apps/web/src/pruebas):
 - Nuevas (archivo `ingreso.test.tsx`):
   1. Modo cliente envía `perfil: 'CLIENTE'` y `username` = DNI; redirige a `/m`.
   2. Modo comercio con DUENO por defecto envía `perfil: 'DUENO'`; elegir "Administrador del sistema" envía `ADMIN_SISTEMA` y redirige a `/admin`.
-  3. Alternar entre "Soy cliente" y "Soy comercio" muestra los campos correctos (DNI vs Usuario + Perfil) y limpia errores.
+  3. Alternar entre "Soy cliente" y "Soy dueño" muestra los campos correctos (DNI vs Usuario + Perfil) y limpia errores.
   4. Con sesión existente, `Ingreso` redirige al inicio del perfil.
   5. Con `state.activada` aparece "Cuenta creada. Ingresa con tu DNI y tu nueva contraseña."
   6. No existe ningún enlace o botón "Registr..." en landing ni en ingreso.
@@ -82,7 +82,7 @@ E2E (Playwright):
 
 ## 8. Riesgos y supuestos
 - Cualquier prueba o enlace que busque textos eliminados ("Ingresa al portal móvil aquí", "Portal del Cliente", "Acceso web aquí") fallará: buscarlos con grep antes de borrar (`C01`/`A01` aparecen en pruebas y quizá en la guía de la demo y el readme: revisar `docs/`).
-- Dos botones "Ingresar" en pantalla de landing y formulario no conviven (rutas distintas); en `Ingreso` hay un solo "Ingresar" de submit, para que `getByRole('button', { name: 'Ingresar' })` no sea ambiguo. Las pestañas se llaman "Soy cliente"/"Soy comercio", no contienen la palabra "Ingresar".
+- Dos botones "Ingresar" en pantalla de landing y formulario no conviven (rutas distintas); en `Ingreso` hay un solo "Ingresar" de submit, para que `getByRole('button', { name: 'Ingresar' })` no sea ambiguo. Las pestañas se llaman "Soy cliente"/"Soy dueño", no contienen la palabra "Ingresar".
 - En la landing el botón de cabecera y el héroe no deben duplicarse con el mismo nombre accesible si un e2e lo busca: usar un único botón "Ingresar" (el de cabecera), y en el héroe un enlace con texto distinto, por ejemplo "Ir a mi cuenta", o bien un solo botón.
 - El mensaje de la API ante credenciales erróneas es genérico y se conserva (no se filtra qué perfil existe).
 - Supuesto: la persistencia de la pestaña elegida no es necesaria (no se guarda en almacenamiento).

@@ -103,11 +103,8 @@ describe('Ingreso único', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Ingresar' }));
     expect(await screen.findByText('El DNI debe tener 8 dígitos numéricos.')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('tab', { name: 'Soy comercio' }));
-    expect(screen.getByRole('tab', { name: 'Soy comercio' })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
+    await userEvent.click(screen.getByRole('tab', { name: 'Soy dueño' }));
+    expect(screen.getByRole('tab', { name: 'Soy dueño' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByLabelText('Usuario')).toBeInTheDocument();
     expect(screen.getByLabelText('Perfil')).toBeInTheDocument();
     expect(screen.queryByLabelText('DNI')).toBeNull();
