@@ -20,7 +20,8 @@ export async function entrarAdmin(page: Page) {
 
 export async function entrarCliente(page: Page, dni: string, clave = 'Vecino#2026') {
   await ingresar(page, '/m/login', dni, clave);
-  await expect(page).toHaveURL(/\/m(\/|$)/);
+  // `/m/login` también empieza con `/m/`: se espera el inicio exacto, ya con la sesión guardada.
+  await expect(page).toHaveURL(/\/m\/?$/);
 }
 
 /** Cierra la sesión sin depender de la pantalla: vacía el almacenamiento del navegador. */
