@@ -5,7 +5,7 @@ export default {
     extend: {
       colors: {
         // Paleta del informe
-        vecino: { oscuro: '#115235', DEFAULT: '#1f7a4d' },
+        vecino: { oscuro: '#115235', DEFAULT: '#1f7a4d', primario: '#1f7a4d' },
       },
     },
   },
