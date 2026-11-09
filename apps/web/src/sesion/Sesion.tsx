@@ -99,11 +99,20 @@ export function useSesion() {
 }
 
 /** Es comodidad: la seguridad sigue en la API. */
-export function Guarda({ perfil, children }: { perfil: Perfil; children: ReactNode }) {
+export function Guarda({
+  perfil,
+  login = '/login',
+  children,
+}: {
+  perfil: Perfil;
+  /** A dónde va quien no tiene sesión: el cliente tiene su propia pantalla de ingreso. */
+  login?: string;
+  children: ReactNode;
+}) {
   const { sesion, cargando } = useSesion();
   const ubicacion = useLocation();
   if (cargando) return <p className="p-6 text-gray-500">Cargando…</p>;
-  if (!sesion) return <Navigate to="/login" replace state={{ desde: ubicacion.pathname }} />;
+  if (!sesion) return <Navigate to={login} replace state={{ desde: ubicacion.pathname }} />;
   if (sesion.usuario.perfil !== perfil)
     return <Navigate to={inicioDe(sesion.usuario.perfil)} replace />;
   return <>{children}</>;

@@ -26,7 +26,7 @@ const RESTRICCIONES = [
 ];
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**'] },
+  { ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**', '.claude/**', '.playwright-mcp/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

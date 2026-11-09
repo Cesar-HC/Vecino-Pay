@@ -13,7 +13,17 @@ import { D05Detalle, D05Lista } from './pantallas/dueno/D05Cronograma';
 import { D06Detalle, D06Lista } from './pantallas/dueno/D06Listado';
 import { D07Lista, D07Pago } from './pantallas/dueno/D07Pago';
 import D08Ayuda from './pantallas/dueno/D08Ayuda';
+import C01LoginCliente from './pantallas/cliente/C01LoginCliente';
+import C02Activar from './pantallas/cliente/C02Activar';
+import C03InicioCliente from './pantallas/cliente/C03InicioCliente';
+import C04MenuCliente from './pantallas/cliente/C04MenuCliente';
+import C05MiListado from './pantallas/cliente/C05MiListado';
+import C06MisCuotas from './pantallas/cliente/C06MisCuotas';
+import C07MisPagos from './pantallas/cliente/C07MisPagos';
+import C08MiPerfil from './pantallas/cliente/C08MiPerfil';
+import C09AyudaCliente from './pantallas/cliente/C09AyudaCliente';
 import { Plantilla } from './plantillas/Plantilla';
+import { PlantillaCliente } from './plantillas/PlantillaCliente';
 import { Guarda, inicioDe, ProveedorSesion, useSesion } from './sesion/Sesion';
 import { Cargando, Vacio } from './ui/base';
 import { FronteraError } from './ui/Fronteras';
@@ -47,6 +57,8 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<Inicio />} />
                 <Route path="/login" element={<A01Login />} />
+                <Route path="/m/login" element={<C01LoginCliente />} />
+                <Route path="/m/activar" element={<C02Activar />} />
                 <Route
                   path="/admin"
                   element={
@@ -83,11 +95,21 @@ export default function App() {
                   <Route path="ayuda/:tema" element={<D08Ayuda />} />
                 </Route>
                 <Route
-                  path="/m/*"
+                  path="/m"
                   element={
-                    <Vacio texto="La vista móvil del cliente estará disponible en la fase 5." />
+                    <Guarda perfil="CLIENTE" login="/m/login">
+                      <PlantillaCliente />
+                    </Guarda>
                   }
-                />
+                >
+                  <Route index element={<C03InicioCliente />} />
+                  <Route path="menu" element={<C04MenuCliente />} />
+                  <Route path="listado" element={<C05MiListado />} />
+                  <Route path="cuotas" element={<C06MisCuotas />} />
+                  <Route path="pagos" element={<C07MisPagos />} />
+                  <Route path="perfil" element={<C08MiPerfil />} />
+                  <Route path="ayuda" element={<C09AyudaCliente />} />
+                </Route>
                 <Route path="*" element={<Vacio texto="Esta página no existe." />} />
               </Routes>
             </Suspense>

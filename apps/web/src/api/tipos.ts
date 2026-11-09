@@ -386,3 +386,114 @@ export interface ReciboPago {
   listado: { id: string; numero: string; estado: string; total: Monto };
   disponible: Monto;
 }
+
+/** Tasa pactada con la tienda, tal como la devuelve /api/mi: el valor viene como tanto por uno. */
+export interface TasaPactada {
+  tipo: string;
+  valor: Tasa;
+  plazo: number;
+  capitalizacion: number | null;
+}
+
+export interface MiResumen {
+  cliente: { nombre: string; numeroCuenta: string };
+  tienda: { nombreComercial: string };
+  moneda: Moneda;
+  proximoPago: {
+    total: Monto;
+    capital: Monto;
+    interes: Monto;
+    mora: Monto;
+    totalALaFecha: Monto;
+    fecha: string;
+    diasRestantes: number;
+    proyectado: boolean;
+  } | null;
+  credito: {
+    limite: Monto;
+    usado: Monto;
+    disponible: Monto;
+    usoPorcentaje: string;
+  };
+  comprasPorSemana: { semana: string; monto: Monto }[];
+  comprasDelCiclo: number;
+  tasa: TasaPactada;
+}
+
+export interface MiCuotaCompra {
+  ticket: string;
+  cuotaFija: Monto | null;
+  tcea: string | null;
+  tceaPorcentaje: string | null;
+  proximaCuota: { numero: number; vence: string; monto: Monto } | null;
+  filas: { numero: number; vence: string; monto: Monto; estado: string }[];
+  explicacion: {
+    fechaCompra: string;
+    fechaPago: string;
+    g: number;
+    interesGracia: Monto;
+    montoLista: Monto;
+    capitalCapitalizado: Monto;
+  };
+}
+
+export interface MiCuotas {
+  compras: MiCuotaCompra[];
+}
+
+export interface MiPagoFila {
+  fecha: string;
+  medioPago: string;
+  numeroOperacion: string | null;
+  monto: Monto;
+  diasMora: number;
+  imputacion: Imputacion;
+  listadoNumero: string;
+}
+
+export interface MiPagos {
+  pagos: MiPagoFila[];
+  disponible: Monto;
+}
+
+export interface MiPerfil {
+  id: string;
+  numeroCuenta: string;
+  dni: string;
+  nombres: string;
+  apellidos: string;
+  celular: string;
+  direccion: string | null;
+  moneda: Moneda;
+  limiteCredito: Monto;
+  maxMeses: number;
+  diaCorte: number;
+  horaCorte: string;
+  diaPago: number;
+  tasa: TasaPactada;
+  tasaMora: { tipo: string; valor: Tasa };
+}
+
+export interface MiEjemplo {
+  ticket: string;
+  capital: Monto;
+  ted: string;
+  dias: number;
+  factor: string;
+  interes: Monto;
+  total: Monto;
+}
+
+export interface ActivarEntrada {
+  dni: string;
+  codigo: string;
+  celular: string;
+  password: string;
+  passwordConfirmacion: string;
+  aceptaDatos: boolean;
+}
+
+export interface CambiarClaveEntrada {
+  actual: string;
+  nueva: string;
+}

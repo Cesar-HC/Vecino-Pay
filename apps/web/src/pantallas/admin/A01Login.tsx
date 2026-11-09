@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { FranjaReloj } from '../../plantillas/Plantilla';
 import { inicioDe, useSesion } from '../../sesion/Sesion';
@@ -95,6 +95,12 @@ export default function A01Login() {
             Ingresar
           </Boton>
           <p className="text-xs text-gray-500">Cada inicio de sesión queda registrado.</p>
+          <div className="border-t border-gray-100 pt-3 text-center text-xs text-gray-600">
+            ¿Eres cliente de una tienda?{' '}
+            <Link to="/m/login" className="font-semibold text-vecino-primario hover:underline">
+              Ingresa al portal móvil aquí
+            </Link>
+          </div>
         </form>
       </div>
     </div>

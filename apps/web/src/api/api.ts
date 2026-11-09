@@ -1,5 +1,7 @@
 import { consulta, pedir } from './cliente';
 import type {
+  ActivarEntrada,
+  CambiarClaveEntrada,
   Cliente,
   Compra,
   CompraEntrada,
@@ -10,6 +12,11 @@ import type {
   Lista,
   ListadoDetalle,
   ListadoResumen,
+  MiCuotas,
+  MiEjemplo,
+  MiPagos,
+  MiPerfil,
+  MiResumen,
   Producto,
   ReciboPago,
   ResultadoCorte,
@@ -98,4 +105,17 @@ export const api = {
   liquidacion: (id: string) => pedir<Liquidacion>(`/listados/${id}/liquidacion`),
   pagar: (id: string, cuerpo: Cuerpo) =>
     pedir<ReciboPago>(`/listados/${id}/pago`, { metodo: 'POST', cuerpo }),
+
+  activar: (cuerpo: ActivarEntrada) =>
+    pedir<Sesion & { token: string }>('/auth/activar', { metodo: 'POST', cuerpo }),
+  cambiarContrasena: (cuerpo: CambiarClaveEntrada) =>
+    pedir<void>('/auth/cambiar-contrasena', { metodo: 'POST', cuerpo }),
+
+  miResumen: () => pedir<MiResumen>('/mi/resumen'),
+  miListados: () => pedir<{ items: ListadoResumen[]; total: number }>('/mi/listados'),
+  miListado: (id: string) => pedir<ListadoDetalle>(`/mi/listados/${id}`),
+  miCuotas: () => pedir<MiCuotas>('/mi/cuotas'),
+  miPagos: () => pedir<MiPagos>('/mi/pagos'),
+  miPerfil: () => pedir<MiPerfil>('/mi/perfil'),
+  miEjemplo: () => pedir<MiEjemplo>('/mi/ayuda/ejemplo'),
 };

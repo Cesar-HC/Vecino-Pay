@@ -172,6 +172,10 @@ export const Celda = ({
   </td>
 );
 
+export const Titulo = ({ children }: { children: ReactNode }) => (
+  <h2 className="text-xl font-bold text-vecino-oscuro">{children}</h2>
+);
+
 export const Cargando = () => (
   <div role="status" aria-label="Cargando" className="space-y-3 p-2">
     <div className="h-4 w-1/2 animate-pulse rounded bg-gray-200" />
