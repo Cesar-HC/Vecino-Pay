@@ -116,6 +116,18 @@ Para el pago del juego 1, pon el reloj en `2026-10-01T12:00:00-05:00` y abre Pag
 un pago de S/ 200.00 se rechaza y S/ 228.72 se acepta, con imputación S/ 0.30, S/ 4.80 y S/ 223.62. Un listado se paga
 una sola vez: repetirlo exige recargar las semillas con `docker compose down -v`, que borra todos los datos.
 
+## Probar el celular (cliente)
+
+Abre http://localhost:8080/m/login (mejor con el ancho de un celular, 375 px). Luis entra con `45872316` y `Vecino#2026`: C03 muestra
+S/ 228.42, S/ 223.62 de capital, S/ 4.80 de interés y S/ 255.08 disponibles. María se activa en `/m/activar` con el DNI `40000002` y el código `MDR-7K2Q`:
+C06 muestra las cuotas S/ 93.25, S/ 93.25 y S/ 93.26 y la TCEA de 51.09 %.
+
+## Pruebas de navegador y guía de la demo
+
+`npm run test:e2e:instalar` (una vez) y `npm run test:e2e` recorren los juegos 1 y 2 y RF09 en el navegador (23 pruebas, unos 2 minutos).
+Corren en un proyecto Docker aparte (`vecinopay-e2e`) y no tocan los datos de `vecinopay`. El guion de 15 minutos para presentar está en
+`docs/guia_demo.md`.
+
 ## Reglas fijas del sistema
 
 - Zona horaria **America/Lima** en todos los contenedores y en los cálculos.
@@ -133,8 +145,8 @@ una sola vez: repetirlo exige recargar las semillas con `docker compose down -v`
 | 2 | Motor financiero con pruebas al céntimo | Aprobada |
 | 3 | API: auth, roles, multitienda, compras, corte, listados, pagos, cronogramas, auditoría | Aprobada |
 | 4 | Web del administrador y del dueño (A01–A05, D01–D08) | Auditada (CONFORME), falta la aprobación de Adrián |
-| 5 | Vista móvil del cliente (C01–C09) | Pendiente |
-| 6 | Pruebas E2E y guía para la demo | Pendiente |
+| 5 | Vista móvil del cliente (C01–C09) | Auditada (CONFORME), falta la aprobación de Adrián |
+| 6 | Pruebas E2E y guía para la demo | Auditada (CONFORME); falta la aprobación de Adrián |
 
 ## Uso de inteligencia artificial
 
